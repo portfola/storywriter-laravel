@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Api\Auth\LoginController;
+use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\V1\ElevenLabsController;
 use App\Http\Controllers\Api\V1\StoryGenerationController;
 use App\Http\Controllers\Api\V1\StoryController; 
@@ -11,6 +12,21 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('/login', LoginController::class);
 });
+
+// Public Routes
+Route::post('/login', [AuthController::class, 'login']);
+
+// Protected Routes (The "Sealed Off" Area)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', function (Request $request) {
+        return $request->user();
+    });
+    
+    Route::post('/heartbeat', [AuthController::class, 'heartbeat']);
+    
+    // Add your app data routes here. WHAT DOES THIS MEAN??
+});
+
 
 Route::get('/user', function (Request $request) {
     return $request->user();
