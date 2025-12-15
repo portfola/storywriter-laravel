@@ -1,15 +1,34 @@
-<?php 
-// config/cors.php
+<?php
+
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cross-Origin Resource Sharing (CORS) Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Here you may configure your settings for cross-origin resource sharing
+    | or "CORS". This determines what cross-origin operations may execute
+    | in web browsers. You are free to adjust these settings as needed.
+    |
+    | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+    |
+    */
+
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
+
     'allowed_methods' => ['*'],
-    'allowed_origins' => [
-        'http://localhost:8081', // Your local Expo Web
-        'https://storywriter.net', // Your AWS Live Web App
-    ],
+
+    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:8081')],
+
     'allowed_origins_patterns' => [],
-    'allowed_headers' => ['*'], // Important for allowing 'Authorization' header
+
+    'allowed_headers' => ['*'],
+
     'exposed_headers' => [],
+
     'max_age' => 0,
-    'supports_credentials' => true, // Keep this true even for tokens
+
+    'supports_credentials' => true,
+
 ];

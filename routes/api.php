@@ -1,4 +1,5 @@
 <?php
+
 use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\V1\ElevenLabsController;
@@ -7,6 +8,9 @@ use App\Http\Controllers\Api\V1\StoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
+//     return $request->user();
+// });
 
 // Route to login to API
 Route::prefix('auth')->group(function () {
