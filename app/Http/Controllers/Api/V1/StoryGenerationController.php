@@ -35,6 +35,9 @@ class StoryGenerationController extends Controller
         // Prepare Together AI prompt
         $prompt = $validated['transcript'];
 
+          // Debug incoming request
+        \Log::info("STORY GEN REQUEST", $request->all());
+
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
             'Content-Type' => 'application/json',
@@ -57,6 +60,13 @@ class StoryGenerationController extends Controller
             'temperature' => $temperature,
         ]);
 
+         // Debug raw TogetherAI output
+        \Log::info("TOGETHER RAW", [
+            'status' => $response->status(),
+            'body'   => $response->body(),
+            'json'   => $response->json(),
+        ]);
+
         if (!$response->successful()) {
                 \Log::error('Together AI error', [
                     'status' => $response->status(),
@@ -76,9 +86,19 @@ class StoryGenerationController extends Controller
             ], 500);
         }
 
+        \Log::info('STORY_RESPONSE', [
+            'final_json' => [
+                'data' => [
+                    'story' => $generatedText,
+                ]
+            ]
+        ]);
+
         // RN expects: { "story": "text..." }
         return response()->json([
-            'story' => $generatedText,
+            'data' => [
+                'story' => $generatedText,
+            ]
         ]);
     }
 }
