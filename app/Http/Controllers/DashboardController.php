@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User; 
+use App\Models\Story;
 
 
 class DashboardController extends Controller
@@ -21,9 +22,14 @@ class DashboardController extends Controller
         }
 
         // 2. Fetch Data: Get users and their device tokens
-        $users = User::with('tokens')->latest()->paginate(20);
+        $users = User::with('tokens')->latest()->paginate(5, ['*'], 'users_page');
+
+        $stories = Story::with('user')->latest()->paginate(5, ['*'], 'stories_page');
 
         // 3. Return View: Send the data to the dashboard page
-        return view('dashboard', ['users' => $users]);
+        return view('dashboard', [
+            'users' => $users,
+            'stories' => $stories
+        ]);
     }
 }
