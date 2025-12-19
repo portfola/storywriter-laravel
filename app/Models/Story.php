@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 class Story extends Model
 {
     /** @use HasFactory<\Database\Factories\StoryFactory> */
@@ -12,7 +14,7 @@ class Story extends Model
 
    protected $fillable = [
         'user_id', 
-        'title', 
+        'name', 
         'body',     // Or 'content', check your database migration!
         'prompt',  
     ];

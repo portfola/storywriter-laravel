@@ -8,10 +8,6 @@ use App\Http\Controllers\Api\V1\StoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
-//     return $request->user();
-// });
-
 // Route to login to API
 Route::prefix('auth')->group(function () {
     Route::post('/login', LoginController::class);
@@ -26,15 +22,15 @@ Route::middleware('auth:sanctum')->group(function () {
         return $request->user();
     });
     
+    // Add your app data routes here. 
+
     Route::post('/heartbeat', [AuthController::class, 'heartbeat']);
-    
-    // Add your app data routes here. WHAT DOES THIS MEAN??
 });
 
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+// Route::get('/user', function (Request $request) {
+//     return $request->user();
+// })->middleware('auth:sanctum');
 
 Route::prefix('v1')->group(function() {
     Route::apiResource('/stories', StoryController::class );

@@ -22,14 +22,25 @@ class DashboardController extends Controller
         }
 
         // 2. Fetch Data: Get users and their device tokens
-        $users = User::with('tokens')->latest()->paginate(5, ['*'], 'users_page');
+        $users = User::with('tokens')
+            ->withCount('stories')
+            ->latest()
+            ->latest()->paginate(5, ['*'], 'users_page');
 
-        $stories = Story::with('user')->latest()->paginate(5, ['*'], 'stories_page');
+        $stories = Story::with('user')
+            ->latest()
+            ->paginate(5, ['*'], 'stories_page');
 
         // 3. Return View: Send the data to the dashboard page
         return view('dashboard', [
             'users' => $users,
             'stories' => $stories
         ]);
+        
+    }
+
+    public function show(Story $story)
+    {
+        return view('web.stories.show', compact('story'));
     }
 }
