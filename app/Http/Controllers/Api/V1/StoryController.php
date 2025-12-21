@@ -47,21 +47,21 @@ class StoryController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(StoreStoryRequest $request)
-    {
-        $story = Story::create($request-validated());
+{
+        // 1. Get the validated data from the request
+        $data = $request->validated();
 
-        return $story->toResource();
-    }
+        // 2. If the app sends 'content' but the DB uses 'body', map it here:
+        if (isset($data['content'])) {
+            $data['body'] = $data['content'];
+        }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Story $story)
-    {
-        //return new StoryResource($story); 
+        // 3. Force the user_id to be the currently authenticated user
+        $data['user_id'] = auth()->id();
 
-        //return StoryResource::make($story); 
-        //Laravel 12
+        // 4. Create the story
+        $story = Story::create($data);
+
         return $story->toResource();
     }
 

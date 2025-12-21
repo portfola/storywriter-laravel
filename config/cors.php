@@ -19,7 +19,11 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:8081')],
+    'allowed_origins' => [
+        'http://localhost:8081',
+        'https://storywriter.net',
+        'https://www.storywriter.net',
+    ],
 
     'allowed_origins_patterns' => [],
 

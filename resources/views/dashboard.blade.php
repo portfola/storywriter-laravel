@@ -6,56 +6,72 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-8xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    
-                    <h3 class="text-lg font-bold mb-4">📱 App Users</h3>
-
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Device</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach ($users as $user)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        #{{ $user->id }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-medium text-gray-900">{{ $user->name }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-500">{{ $user->email }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        {{-- Display the name of the most recent token (e.g. "android") --}}
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                            {{ $user->tokens->last()?->name ?? 'Web' }}
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $user->created_at->diffForHumans() }}
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {{-- Pagination Links --}}
-                    <div class="mt-4">
-                        {{ $users->links() }}
-                    </div>
-
+                    <h3>App Users</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Stories Created</th> <th>Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($users as $user)
+                            <tr>
+                                <td>{{ $user->name }}</td>
+                                <td>{{ $user->email }}</td>
+                                
+                                <td style="text-align: center; font-weight: bold;">
+                                    {{ $user->stories_count }} 
+                                </td>
+                                
+                                <td>{{ $user->created_at->diffForHumans() }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    {{ $users->appends(['stories_page' => $stories->currentPage()])->links() }}
                 </div>
+                    <h3>Recent Stories</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Story Title</th>
+                            <th>Author</th> <th>Prompt Used</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($stories as $story)
+                       
+                        <tr>
+                            <td>
+                                <a href="{{ route('dashboard.story', $story->slug) }}" class="text-blue-600 hover:underline">
+                                    {{ $story->name }}
+                                </a>
+                            
+                            <td>
+                                @if($story->user)
+                                    <span class="badge">{{ $story->user->name }}</span>
+                                    <br>
+                                    <small>{{ $story->user->email }}</small>
+                                @else
+                                    <span style="color: red;">Unknown (User Deleted)</span>
+                                @endif
+                            </td>
+
+                            <td>
+                                {{ Str::limit($story->prompt, 50) }}
+                            </td>
+                            <td>{{ $story->created_at->format('M d, Y') }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                {{ $stories->appends(['users_page' => $users->currentPage()])->links() }}
             </div>
         </div>
     </div>

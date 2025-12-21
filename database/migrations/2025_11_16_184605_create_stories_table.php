@@ -14,7 +14,9 @@ return new class extends Migration
         Schema::create('stories', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Links to User
             $table->text('body');
+            $table->text('prompt')->nullable();
             $table->timestamps();
         });
     }
