@@ -15,9 +15,15 @@ class Story extends Model
    protected $fillable = [
         'user_id', 
         'name', 
+        'slug',
         'body',     // Or 'content', check your database migration!
         'prompt',  
     ];
+
+    public function getRouteKeyName()
+    {
+        return 'slug';
+    }
 
     public function user(): BelongsTo
     {

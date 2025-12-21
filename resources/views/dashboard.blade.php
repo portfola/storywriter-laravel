@@ -6,7 +6,7 @@
     </x-slot>
 
     <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-8xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     <h3>App Users</h3>
@@ -49,9 +49,9 @@
                        
                         <tr>
                             <td>
-                                <a href="{{ route('dashboard.story', $story->id) }}" class="text-blue-600 hover:underline">
-    {{ $story->name }}
-</a>
+                                <a href="{{ route('dashboard.story', $story->slug) }}" class="text-blue-600 hover:underline">
+                                    {{ $story->name }}
+                                </a>
                             
                             <td>
                                 @if($story->user)

@@ -23,7 +23,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     
     // Add your app data routes here. 
-
+    Route::post('stories/generate', [StoryGenerationController::class, 'generate']);
     Route::post('/heartbeat', [AuthController::class, 'heartbeat']);
 });
 
@@ -42,4 +42,3 @@ Route::prefix('conversation')->group(function () {
     Route::get('/voices', [ElevenLabsController::class, 'voices']);
 });
 
-Route::post('/stories/generate', [StoryGenerationController::class, 'generate']);

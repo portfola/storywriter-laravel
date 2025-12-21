@@ -19,7 +19,7 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
    
-   Route::get('/view-story/{story}', [DashboardController::class, 'show'])->name('dashboard.story');
+   Route::get('/view-story/{story:slug}', [DashboardController::class, 'show'])->name('dashboard.story');
 
 });
 

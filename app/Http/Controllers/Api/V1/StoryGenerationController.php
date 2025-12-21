@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 use App\Models\Story;
 
@@ -19,9 +20,9 @@ class StoryGenerationController extends Controller
     public function generate(Request $request)
     {
 
-        // 1. LOG FIRST (Before Validation)
-        \Log::info("--- HIT GENERATE ENDPOINT ---");
-        \Log::info("Raw Payload:", $request->all());
+        // // 1. LOG FIRST (Before Validation)
+        // \Log::info("--- HIT GENERATE ENDPOINT ---");
+        // \Log::info("Raw Payload:", $request->all());
 
         $validated = $request->validate([
             'transcript' => 'required|string',
@@ -107,6 +108,7 @@ class StoryGenerationController extends Controller
             $storyEntry = Story::create([
                 'user_id' => $userId, // Falls back to user 1 if auth fails for now
                 'name'   => trim($title) ?: 'New AI Story',
+                'slug'    => Str::slug(trim($title) ?: 'new-ai-story') . '-' . Str::random(4),
                 'body'    => $generatedText,
                 'prompt'  => $prompt,
             ]);
