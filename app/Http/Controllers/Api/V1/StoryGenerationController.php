@@ -23,7 +23,8 @@ public function generate(Request $request)
             'options' => 'nullable|array',
         ]);
 
-        $apiKey = env('TOGETHER_API_KEY', "tgp_v1_QpJ-9lZgMShCFIgU2RSISouNlKccrL_s3yvoWUpcvZc");
+        // on local, have to add API Key manually, in this format: `env('TOGETHER_API_KEY', "apikey");
+        $apiKey = env('TOGETHER_API_KEY');
         if (!$apiKey) {
             return response()->json(['error' => 'TOGETHER_API_KEY missing'], 500);
         }
