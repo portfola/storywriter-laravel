@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 
+
 class ElevenLabsController extends Controller
 {
     /**
@@ -18,6 +19,7 @@ class ElevenLabsController extends Controller
             'agentId' => 'required|string',
         ]);
 
+        //Have to manually add API KEY
         $apiKey = env('ELEVENLABS_API_KEY');
         if (!$apiKey) {
             return response()->json([
