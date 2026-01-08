@@ -1,0 +1,77 @@
+name: Terraform Staging Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+env:
+  TF_VAR_vpc_id: ${{ secrets.AWS_VPC_ID }}
+  TF_VAR_subnet_id: ${{ secrets.AWS_SUBNET_ID }}
+  TF_VAR_key_pair_name: ${{ secrets.AWS_KEY_PAIR_NAME }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event.inputs.action || 'plan' }}
+    runs-on: ubuntu-latest
+    environment: staging
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: github.event.inputs.action != 'destroy'
+        run: terraform plan -out=tfplan -no-color
+        continue-on-error: false
+
+      - name: Terraform Apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+
+      - name: Output Infrastructure Details
+        if: github.event.inputs.action == 'apply'
+        run: terraform output

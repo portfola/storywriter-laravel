@@ -1,0 +1,74 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deployment
+  cancel-in-progress: false
+
+env:
+  APP_DIR: /var/www/storywriter-staging
+
+jobs:
+  deploy:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh -i ~/.ssh/deploy_key deploy@${{ secrets.STAGING_HOST }} << 'DEPLOY_SCRIPT'
+            set -e
+            cd /var/www/storywriter-staging
+
+            echo "==> Pulling latest code from develop branch..."
+            git fetch origin develop
+            git reset --hard origin/develop
+
+            echo "==> Installing Composer dependencies..."
+            composer install --no-dev --optimize-autoloader --no-interaction
+
+            echo "==> Running database migrations..."
+            php artisan migrate --force
+
+            echo "==> Clearing and rebuilding caches..."
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+
+            echo "==> Installing npm dependencies and building assets..."
+            npm ci --production=false
+            npm run build
+
+            echo "==> Setting permissions..."
+            chmod -R 775 storage bootstrap/cache
+
+            echo "==> Restarting PHP-FPM..."
+            sudo /bin/systemctl reload php8.4-fpm
+
+            echo "==> Deployment completed successfully!"
+          DEPLOY_SCRIPT
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment to staging failed!"
