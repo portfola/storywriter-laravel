@@ -20,11 +20,13 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'http://localhost:8081',
-        'http://localhost:3000',
-        'http://127.0.0.1:8081',
-        'https://storywriter.net',
-        'https://www.storywriter.net',
+        'https://staging.storywriter.net',      // Staging frontend
+        'https://storywriter.net',               // Production frontend
+        'https://www.storywriter.net',           // Production www subdomain
+        'http://localhost:3000',                 // Local web development
+        'http://localhost:8081',                 // Expo development
+        'http://localhost:19006',                // Expo web
+        'http://127.0.0.1:8081',                 // Local alternative
     ],
 
     'allowed_origins_patterns' => [],

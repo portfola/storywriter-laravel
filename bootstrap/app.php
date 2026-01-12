@@ -21,13 +21,21 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class, [
-        'paths' => ['api/*', '*'],
+        'paths' => ['api/*', 'sanctum/csrf-cookie'],
         'allowed_methods' => ['*'],
-        'allowed_origins' => ['*'],  // allow Expo dev tools
+        'allowed_origins' => [
+            'https://staging.storywriter.net',      // Staging frontend
+            'https://storywriter.net',               // Production frontend
+            'https://www.storywriter.net',           // Production www subdomain
+            'http://localhost:3000',                 // Local web development
+            'http://localhost:8081',                 // Expo development
+            'http://localhost:19006',                // Expo web
+            'http://127.0.0.1:8081',                 // Local alternative
+        ],
         'allowed_headers' => ['*'],
         'exposed_headers' => [],
         'max_age' => 0,
-        'supports_credentials' => false,
+        'supports_credentials' => true,              // Required for Authorization header
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
