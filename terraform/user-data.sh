@@ -59,6 +59,7 @@ sed -i 's/post_max_size = 8M/post_max_size = 64M/' /etc/php/8.4/fpm/php.ini
 
 # Create application directory
 mkdir -p $APP_DIR
+mkdir -p /var/www/releases
 chown -R www-data:www-data /var/www
 
 # Configure Nginx
@@ -123,7 +124,9 @@ chmod 440 /etc/sudoers.d/deploy
 
 # Set proper permissions for application directory
 chown -R deploy:www-data $APP_DIR
+chown -R deploy:www-data /var/www/releases
 chmod -R 775 $APP_DIR
+chmod 755 /var/www/releases
 
 # Create storage directories that Laravel needs
 mkdir -p $APP_DIR/storage/app/public
