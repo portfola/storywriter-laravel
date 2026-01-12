@@ -62,7 +62,7 @@ mkdir -p $APP_DIR
 chown -R www-data:www-data /var/www
 
 # Configure Nginx
-cat > /etc/nginx/sites-available/$APP_NAME << 'NGINX_EOF'
+cat > /etc/nginx/sites-available/$APP_NAME << NGINX_EOF
 server {
     listen 80;
     listen [::]:80;
