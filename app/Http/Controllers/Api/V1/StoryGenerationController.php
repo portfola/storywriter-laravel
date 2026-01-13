@@ -23,6 +23,7 @@ class StoryGenerationController extends Controller
      */
     public function generate(Request $request)
     {
+        set_time_limit(120); // Allow script to run for 2 minutes
 
         // // 1. LOG FIRST (Before Validation)
         // \Log::info("--- HIT GENERATE ENDPOINT ---");
@@ -33,6 +34,8 @@ class StoryGenerationController extends Controller
             'transcript' => 'required|string',
             'options' => 'nullable|array',
         ]);
+
+        
         //hard coded for now
         $apiKey = env('TOGETHER_API_KEY', "tgp_v1_QpJ-9lZgMShCFIgU2RSISouNlKccrL_s3yvoWUpcvZc");
         if (!$apiKey) {
@@ -43,11 +46,17 @@ class StoryGenerationController extends Controller
 
         // Extract generation options (with sensible defaults)
         $options = $validated['options'] ?? [];
-        $maxTokens   = $options['maxTokens']   ?? 1000;
+        $maxTokens   = $options['maxTokens']   ?? 2000;
         $temperature = $options['temperature'] ?? 0.7;
 
-        // Prepare Together AI prompt
-        $prompt = $validated['transcript'];
+        // Build the prompt
+        $prompt = $this->promptBuilder->buildStoryPrompt($validated['transcript']);
+
+        // Optional: Log the prompt for debugging during experimentation
+        // \Log::info('Story generation prompt', [
+        //     'conversation_length' => strlen($validated['transcript']),
+        //     'prompt' => $prompt
+        // ]);
         
         \Log::info('FULL PROMPT: ', $prompt);
 
@@ -62,44 +71,11 @@ class StoryGenerationController extends Controller
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => `You are a professional children's book author. Your goal is 
-                to take a transcript of a conversation and turn it into 
-                an engaging 3 to 6 page story for young readers.
-
-                **Task Instructions**
-                1. Read the supplied [Conversation] to understand the characters, plot ideas, 
-                and tone.
-                2. Write a 3 to 6 page story based on this input. Make it 4 or 5 sentences per page.
-
-                **Formatting Requirements (CRITICAL):**
-                You must strictly follow this structure. 
-                If you do not follow this exact format, the output is unusable.
-
-                * The story MUST be at least 3 pages long, but could go to 10 pages.
-                * You MUST separate every page using exactly 
-                * this separator line: "-- - PAGE BREAK--- "
-                * HOWEVER you MUST make the "-- - PAGE BREAK--- " invisible on the page
-
-
-                **Desired Output Structure Example:**
-
-                Page 1
-                [The text for the first page of the story goes here...]
-                ---PAGE BREAK---
-
-                Page 2
-                [The text for the second page goes here...]
-                ---PAGE BREAK---
-                *(Continue this exact pattern for Pages 3, 4, and 5)*
-
-                **[Conversation]:**
-                [FULL_DIALOGUE]
-                
-                Conversation:`
+                    'content' => $prompt,
                 ],
                 [
                     'role' => 'user',
-                    'content' => $prompt,
+                    'content' => $validated['transcript'],
                 ]
             ],
             'max_tokens' => $maxTokens,
