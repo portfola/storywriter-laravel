@@ -5,38 +5,68 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User; 
 use App\Models\Story;
+use App\Services\StoryAnalyticsService;
 
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        private StoryAnalyticsService $analytics
+    ) {}
+
     public function index()
     {
         
-        // 1. Security Check: Block regular users
-        // (Make sure you ran the 'is_admin' migration we discussed!)
-        // if (!auth()->user()->is_admin) {
-        //     abort(403, 'Access Denied: Admins Only.');
-        // }
+       // Security Check
         if (auth()->user()->email !== 'timothybenjaminbeckett@gmail.com') { 
             abort(403, 'Access Denied: Admins Only');
         }
 
-        // 2. Fetch Data: Get users and their device tokens
+        // Fetch basic user and story data for landing page
         $users = User::with('tokens')
             ->withCount('stories')
             ->latest()
             ->latest()->paginate(5, ['*'], 'users_page');
 
         $stories = Story::with('user')
+            ->select('id', 'user_id', 'name', 'slug', 'created_at')
             ->latest()
             ->paginate(5, ['*'], 'stories_page');
+
+        // Get quick stats for dashboard cards
+        $quickStats = [
+            'total_users' => User::count(),
+            'total_stories' => Story::count(),
+            'stories_today' => Story::whereDate('created_at', today())->count(),
+            'total_generations' => $this->analytics->getTotalRequests(),
+        ];
 
         // 3. Return View: Send the data to the dashboard page
         return view('dashboard', [
             'users' => $users,
-            'stories' => $stories
+            'stories' => $stories, 
+            'quickStats' => $quickStats
         ]);
         
+    }
+
+     public function analytics()
+    {
+        // Security Check
+        if (auth()->user()->email !== 'timothybenjaminbeckett@gmail.com') { 
+            abort(403, 'Access Denied: Admins Only');
+        }
+
+        // Get comprehensive analytics data
+        $data = [
+            'overview' => $this->analytics->getOverview(),
+            'avg_transcript_length' => round($this->analytics->getAverageTranscriptLength()),
+            'avg_story_length' => round($this->analytics->getAverageStoryLength()),
+            'recent_activity' => $this->analytics->getRecentActivity(50),
+            'generation_trends' => $this->analytics->getDailyActivity(30),
+        ];
+
+        return view('dashboard.analytics', compact('data'));
     }
 
     public function show(Story $story)

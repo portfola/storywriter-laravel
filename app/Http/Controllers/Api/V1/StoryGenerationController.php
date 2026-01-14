@@ -7,71 +7,66 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-
 use App\Models\Story;
-
-
 
 class StoryGenerationController extends Controller
 {
+    public function __construct(
+        private PromptBuilder $promptBuilder
+    ) {}
 
-        public function __construct(
-            private PromptBuilder $promptBuilder
-        ) {}
     /**
-     * Generate a story using Together AI based on a transcript.
+     * Generate a story AND images using Google Flash Image 2.5
      */
-    public function generate(Request $request)
-    {
-        set_time_limit(120); // Allow script to run for 2 minutes
 
-        // // 1. LOG FIRST (Before Validation)
-        // \Log::info("--- HIT GENERATE ENDPOINT ---");
-        // \Log::info("Raw Payload:", $request->all());
-        \Log::info('Incoming Story Request:', $request->all());
+public function generate(Request $request)
+    {
+
+            // Log everything being sent
+        \Log::info('=== INCOMING REQUEST ===');
+        \Log::info('Headers:', $request->headers->all());
+        \Log::info('All Input:', $request->all());
+
+        set_time_limit(120); // Allow script to run for 2 minutes
 
         $validated = $request->validate([
             'transcript' => 'required|string',
             'options' => 'nullable|array',
         ]);
 
-        
-        //hard coded for now
-        $apiKey = env('TOGETHER_API_KEY', "tgp_v1_QpJ-9lZgMShCFIgU2RSISouNlKccrL_s3yvoWUpcvZc");
+        // Build the prompt
+        $prompt = $this->promptBuilder->buildStoryPrompt($validated['transcript']);
+
+        \Log::info($prompt);
+
+        // on local, have to add API Key manually, in this format: `env('TOGETHER_API_KEY', "apikey");
+        $apiKey = env('TOGETHER_API_KEY');
         if (!$apiKey) {
-            return response()->json([
-                'error' => 'TOGETHER_API_KEY missing in .env'
-            ], 500);
+            return response()->json(['error' => 'TOGETHER_API_KEY missing'], 500);
         }
 
-        // Extract generation options (with sensible defaults)
         $options = $validated['options'] ?? [];
         $maxTokens   = $options['maxTokens']   ?? 2000;
         $temperature = $options['temperature'] ?? 0.7;
 
-        // Build the prompt
-        $prompt = $this->promptBuilder->buildStoryPrompt($validated['transcript']);
+        \Log::info('About to call Together AI', [
+            'model' => 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+            'max_tokens' => $maxTokens,
+            'temperature' => $temperature,
+        ]);
 
-        // Optional: Log the prompt for debugging during experimentation
-        // \Log::info('Story generation prompt', [
-        //     'conversation_length' => strlen($validated['transcript']),
-        //     'prompt' => $prompt
-        // ]);
-        
-        \Log::info('FULL PROMPT: ', $prompt);
-
-        $response = Http::withHeaders([
+        // ---------------------------------------------------------
+        // STEP 1: GENERATE TEXT (Using Llama 3 - Reliable & Fast)
+        // ---------------------------------------------------------
+        $textResponse = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
+            'Content-Type'  => 'application/json',
         ])->post('https://api.together.xyz/v1/chat/completions', [
-            //'model' => 'meta-llama/Meta-Llama-3-8B-Instruct',
-            //'model' => 'meta-llama/Llama-3.1-8B-Instruct-Turbo',
-            'model' => 'mistralai/Mistral-7B-Instruct-v0.3',
+            'model' => 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => $prompt,
+                    'content' => $prompt['system'],
                 ],
                 [
                     'role' => 'user',
@@ -82,78 +77,84 @@ class StoryGenerationController extends Controller
             'temperature' => $temperature,
         ]);
 
-         // Debug raw TogetherAI output
-        \Log::info("TOGETHER RAW", [
-            'status' => $response->status(),
-            'body'   => $response->body(),
-            'json'   => $response->json(),
+         \Log::info('Together AI Response Received', [
+            'status' => $textResponse->status(),
+            'successful' => $textResponse->successful(),
         ]);
 
-        if (!$response->successful()) {
-                \Log::error('Together AI error', [
-                    'status' => $response->status(),
-                    'body'   => $response->json(),
-                ]);
-            return response()->json([
-                'error' => 'AI generation failed',
-                'details' => $response->json(),
-            ], $response->status());
+        if (!$textResponse->successful()) {
+            \Log::error('Text Generation Failed', ['body' => $textResponse->json()]);
+            return response()->json(['error' => 'Story text generation failed'], 503);
         }
 
-        $generatedText = $response->json()['choices'][0]['message']['content'] ?? null;
+        $storyText = $textResponse->json()['choices'][0]['message']['content'] ?? '';
 
-        if (!$generatedText) {
-            return response()->json([
-                'error' => 'Invalid AI response',
-            ], 500);
-        }
-
-
-        // --- NEW DATABASE SAVE SECTION ---
-        // We attempt to save the story to the database
-        \Log::info("--- ENTERING DB SAVE BLOCK ---"); // Breadcrumb 1
+         \Log::info('Story generated successfully', [
+            'length' => strlen($storyText),
+        ]);
+        // ---------------------------------------------------------
+        // STEP 2: GENERATE COVER IMAGE (Using Flux.1 - Best quality)
+        // ---------------------------------------------------------
+        $imageUrl = null;
+        
+        // Create a simple image prompt based on the user's input
+        $imagePrompt = "Children's book illustration, cover art, cute style: " . substr($validated['transcript'], 0, 200);
 
         try {
-            // We'll extract a simple title from the first line or use a default
-            $title = strtok($generatedText, "\n"); // Grabs the first line as a title
-            $title = str_replace(['Title:', '"', '#'], '', $title);
-
-            $userId = auth()->id() ?? 1;
-
-            $storyEntry = Story::create([
-                'user_id' => $userId, // Falls back to user 1 if auth fails for now
-                'name'   => trim($title) ?: 'New AI Story',
-                'slug'    => Str::slug(trim($title) ?: 'new-ai-story') . '-' . Str::random(4),
-                'body'    => $generatedText,
-                'prompt'  => $prompt,
+            $imageResponse = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+            ])->post('https://api.together.xyz/v1/images/generations', [
+                'model' => 'black-forest-labs/FLUX.1-schnell',
+                'prompt' => $imagePrompt,
+                'width' => 1024,
+                'height' => 768,
+                'steps' => 4, // Low steps = Fast (Schnell model is designed for this)
+                'n' => 1,
             ]);
 
-            \Log::info("STORY PERSISTED TO DB", ['id' => $storyEntry->id]);
+            if ($imageResponse->successful()) {
+                $imageUrl = $imageResponse->json()['data'][0]['url'] ?? null;
+            } else {
+                \Log::error('Image Generation Failed', ['body' => $imageResponse->json()]);
+            }
+
+        } catch (\Exception $e) {
+            \Log::error('Image Generation Exception: ' . $e->getMessage());
+            // We don't stop the story if the image fails, we just continue without it.
+        }
+
+        // ---------------------------------------------------------
+        // STEP 3: MERGE & SAVE
+        // ---------------------------------------------------------
+        
+        // Inject the image at the top of the story text if we got one
+        if ($imageUrl) {
+            $storyText = "![]( $imageUrl )\n\n" . $storyText;
+        }
+
+        // --- DATABASE SAVE ---
+        try {
+            $title = strtok($storyText, "\n");
+            $title = str_replace(['Title:', '"', '#', '*', '![]', '(', ')'], '', $title);
+
+            $storyEntry = Story::create([
+                'user_id' => auth()->id() ?? 1,
+                'name'    => trim($title) ?: 'New Story',
+                'slug'    => Str::slug(trim($title) ?: 'story') . '-' . Str::random(4),
+                'body'    => $storyText,
+                'prompt'  => $validated['transcript'],
+            ]);
 
         } catch (\Throwable $e) {
-            \Log::error("CRITICAL DATABASE ERROR: " . $e->getMessage());
-            // \Log::error($e->getTraceAsString()); // Logs exactly where it failed
-            // We don't want to break the app response if the save fails, 
-            // but we definitely want to know why in the logs.
+            \Log::error("DB SAVE ERROR: " . $e->getMessage());
         }
-        // --- END DATABASE SAVE SECTION ---
 
-
-        \Log::info('I AM RUNNING FROM: ' . __FILE__); // <--- ADD THIS LINE
-
-        \Log::info('STORY_RESPONSE', [
-            'final_json' => [
-                'data' => [
-                    'story' => $generatedText,
-                ]
-            ]
-        ]);
-
-        // RN expects: { "story": "text..." }
         return response()->json([
             'data' => [
-                'story' => $generatedText,
+                'story' => $storyText,
             ]
         ]);
     }
+
 }
