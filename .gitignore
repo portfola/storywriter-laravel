@@ -23,8 +23,6 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 repomix*
-claude*
-plan.md
 
 # Terraform
 terraform/.terraform/
