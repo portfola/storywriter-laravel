@@ -9,6 +9,8 @@ echo "Starting provisioning at $(date)"
 DOMAIN_NAME="${domain_name}"
 APP_NAME="${app_name}"
 GITHUB_REPO="${github_repo}"
+DATABASE_NAME="${database_name}"
+DEPLOY_BRANCH="${deploy_branch}"
 APP_DIR="/var/www/$APP_NAME"
 
 # Update system
@@ -53,10 +55,10 @@ systemctl start postgresql
 # Create application database and user
 POSTGRES_PASSWORD=$(openssl rand -base64 32)
 sudo -u postgres psql << POSTGRES_SETUP
-CREATE DATABASE storywriter_staging;
+CREATE DATABASE $DATABASE_NAME;
 CREATE USER storywriter_app WITH ENCRYPTED PASSWORD '$POSTGRES_PASSWORD';
-GRANT ALL PRIVILEGES ON DATABASE storywriter_staging TO storywriter_app;
-\c storywriter_staging
+GRANT ALL PRIVILEGES ON DATABASE $DATABASE_NAME TO storywriter_app;
+\c $DATABASE_NAME
 GRANT ALL ON SCHEMA public TO storywriter_app;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO storywriter_app;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO storywriter_app;
@@ -66,11 +68,12 @@ POSTGRES_SETUP
 
 # Store database credentials for retrieval
 cat > /root/.db_credentials << DB_CREDS
-Database: storywriter_staging
+Database: $DATABASE_NAME
 Username: storywriter_app
 Password: $POSTGRES_PASSWORD
 Host: localhost
 Port: 5432
+Deploy Branch: $DEPLOY_BRANCH
 DB_CREDS
 chmod 600 /root/.db_credentials
 
@@ -109,7 +112,7 @@ server {
     charset utf-8;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
     location = /favicon.ico { access_log off; log_not_found off; }
@@ -117,9 +120,9 @@ server {
 
     error_page 404 /index.php;
 
-    location ~ \.php$ {
+    location ~ \.php\$ {
         fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
         fastcgi_hide_header X-Powered-By;
     }
@@ -178,8 +181,10 @@ systemctl restart php8.4-fpm
 systemctl restart nginx
 
 echo "Provisioning completed at $(date)"
+echo "Environment: $APP_NAME"
+echo "Deploy Branch: $DEPLOY_BRANCH"
 echo "Next steps:"
 echo "1. Point DNS A record for $DOMAIN_NAME to this server's IP"
 echo "2. Run: sudo certbot --nginx -d $DOMAIN_NAME"
 echo "3. Retrieve database credentials from: sudo cat /root/.db_credentials"
-echo "4. Deploy your application code"
+echo "4. Deploy your application code from the '$DEPLOY_BRANCH' branch"

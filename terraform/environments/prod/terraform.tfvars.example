@@ -1,0 +1,16 @@
+# Production Environment Variables
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control
+
+aws_region         = "us-east-1"
+vpc_id             = "vpc-xxxxxxxx"
+subnet_id          = "subnet-xxxxxxxx"
+key_pair_name      = "storywriter-prod-ec2-tf"
+instance_type      = "t4g.micro"
+domain_name        = "prod.storywriter.net"
+app_name           = "storywriter-prod"
+github_repo        = "https://github.com/your-username/storywriter-laravel.git"
+environment        = "production"
+ssm_parameter_path = "/storywriter/production"
+database_name      = "storywriter_production"
+deploy_branch      = "main"

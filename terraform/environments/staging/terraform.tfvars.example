@@ -1,0 +1,16 @@
+# Staging Environment Variables
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control
+
+aws_region         = "us-east-1"
+vpc_id             = "vpc-xxxxxxxx"
+subnet_id          = "subnet-xxxxxxxx"
+key_pair_name      = "storywriter-staging-ec2-tf"
+instance_type      = "t4g.micro"
+domain_name        = "staging-api.storywriter.net"
+app_name           = "storywriter-staging"
+github_repo        = "https://github.com/your-username/storywriter-laravel.git"
+environment        = "staging"
+ssm_parameter_path = "/storywriter/staging"
+database_name      = "storywriter_staging"
+deploy_branch      = "develop"
