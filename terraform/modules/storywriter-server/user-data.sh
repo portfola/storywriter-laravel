@@ -79,8 +79,21 @@ chmod 600 /root/.db_credentials
 
 echo "PostgreSQL credentials stored in /root/.db_credentials"
 
-# Install Composer
-curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Install Composer (set HOME to avoid warnings)
+export HOME=/root
+EXPECTED_CHECKSUM="$(curl -sS https://composer.github.io/installer.sig)"
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+ACTUAL_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
+
+if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+    echo "ERROR: Invalid Composer installer checksum"
+    rm composer-setup.php
+    exit 1
+fi
+
+php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+rm composer-setup.php
+echo "Composer installed successfully"
 
 # Install Node.js 20 LTS
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
