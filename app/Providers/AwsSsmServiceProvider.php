@@ -44,10 +44,18 @@ class AwsSsmServiceProvider extends ServiceProvider
 
         // Try to get from cache first
         if ($cacheTtl > 0) {
-            $cachedParams = Cache::get($cacheKey);
-            if ($cachedParams !== null) {
-                $this->applyParameters($cachedParams);
-                return;
+            try {
+                $cachedParams = Cache::get($cacheKey);
+                if ($cachedParams !== null) {
+                    $this->applyParameters($cachedParams);
+                    return;
+                }
+            } catch (\Exception $e) {
+                // Cache might not be available yet (e.g., during initial deployment when cache table doesn't exist)
+                // Continue to fetch from SSM
+                Log::debug('Cache not available, fetching from SSM', [
+                    'error' => $e->getMessage()
+                ]);
             }
         }
 
@@ -59,7 +67,15 @@ class AwsSsmServiceProvider extends ServiceProvider
 
             // Cache the parameters
             if ($cacheTtl > 0 && !empty($parameters)) {
-                Cache::put($cacheKey, $parameters, $cacheTtl);
+                try {
+                    Cache::put($cacheKey, $parameters, $cacheTtl);
+                } catch (\Exception $e) {
+                    // Cache might not be available yet (e.g., during initial deployment)
+                    // Continue without caching
+                    Log::debug('Unable to cache SSM parameters', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
             }
 
             $this->applyParameters($parameters);
