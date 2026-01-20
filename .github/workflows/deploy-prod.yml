@@ -179,7 +179,7 @@ jobs:
           DB_CONNECTION=pgsql
           DB_HOST=localhost
           DB_PORT=5432
-          DB_DATABASE=storywriter_prod
+          DB_DATABASE=storywriter_production
           DB_USERNAME=storywriter_app
           ENVEOF
 
