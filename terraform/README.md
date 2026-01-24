@@ -33,7 +33,7 @@ terraform/
 | Environment | Domain | Git Branch | SSM Path | Database |
 |-------------|--------|------------|----------|----------|
 | Staging | staging-api.storywriter.net | develop | /storywriter/staging/* | storywriter_staging |
-| Production | prod.storywriter.net | main | /storywriter/production/* | storywriter_production |
+| Production | api.storywriter.net | main | /storywriter/production/* | storywriter_production |
 
 ## Prerequisites
 

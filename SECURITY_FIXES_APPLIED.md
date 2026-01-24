@@ -76,7 +76,7 @@ Added environment configuration:
 ```yaml
 environment:
   name: production
-  url: https://prod.storywriter.net
+  url: https://api.storywriter.net
 ```
 
 ## Infrastructure Status
@@ -91,7 +91,7 @@ environment:
 ### Production Environment
 - **Instance ID**: `i-073488218b4d18499`
 - **Elastic IP**: `44.210.27.168`
-- **Domain**: `prod.storywriter.net`
+- **Domain**: `api.storywriter.net`
 - **Security Group**: `sg-05d4cdec9d690ebb0`
 - **Status**: ✅ Security fixes applied and verified
 
