@@ -224,13 +224,19 @@ jobs:
           echo "==> Running database migrations..."
           php artisan migrate --force
 
-          echo "==> Clearing and rebuilding caches..."
+          echo "==> Clearing Laravel caches..."
+          php artisan config:clear
+          php artisan route:clear
+          php artisan view:clear
+          php artisan cache:clear
+
+          echo "==> Rebuilding Laravel caches..."
           php artisan config:cache
           php artisan route:cache
           php artisan view:cache
 
-          echo "==> Reloading PHP-FPM..."
-          sudo /bin/systemctl reload php8.4-fpm
+          echo "==> Restarting PHP-FPM (clears OPcache)..."
+          sudo /bin/systemctl restart php8.4-fpm
 
           echo "==> Deployment completed successfully!"
           echo "Deployed commit: ${{ github.sha }}"
