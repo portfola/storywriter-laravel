@@ -23,6 +23,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 repomix*
+/docs
 
 # Terraform - Infrastructure as Code
 # Exclude local state and sensitive files, but keep .tf code files
