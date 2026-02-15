@@ -96,7 +96,7 @@ All endpoints are protected by `auth:sanctum` middleware and require authenticat
 **File:** `app/Http/Controllers/Api/V1/ElevenLabsController.php`
 
 **Methods:**
-- `sdkCredentials()` - Generate signed WebSocket URLs for direct frontend connection
+- `sdkCredentials()` - Generate signed WebSocket URLs for direct frontend connection (deprecated)
 - `conversationProxy()` - Proxy conversational AI requests with session management
 - `textToSpeech()` - Convert text to MP3 audio
 - `voices()` - Fetch available voice models
