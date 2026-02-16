@@ -173,20 +173,20 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Cost Alerting
 
-- [ ] Set up cost threshold alerting
-  - Send email/Slack when daily cost exceeds $10
-  - Alert when approaching monthly budget
-  - Notify admin of unusual usage spikes
+- [x] Set up cost threshold alerting - Completed 2026-02-15
+  - Send email when daily cost exceeds $10
+  - Alert when approaching monthly budget ($180)
+  - Notify admin of unusual usage spikes (2x threshold)
 
-- [ ] Create scheduled task
-  ```bash
-  php artisan make:command MonitorElevenLabsCost
-  ```
+- [x] Create scheduled task - Completed 2026-02-15
+  - Created `app/Console/Commands/MonitorElevenLabsCost.php`
+  - Command: `php artisan elevenlabs:monitor-cost`
+  - Options: `--period=today|week|month` and `--notify`
 
-- [ ] Register in `app/Console/Kernel.php`
-  - Run hourly or daily
-  - Check cost against thresholds
-  - Send alerts if exceeded
+- [x] Register in `routes/console.php` - Completed 2026-02-15
+  - Runs daily at 6 PM with notifications enabled
+  - Checks costs against defined thresholds
+  - Sends email alerts to admin users if exceeded
 
 #### Logging Improvements
 
