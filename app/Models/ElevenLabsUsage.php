@@ -77,4 +77,29 @@ class ElevenLabsUsage extends Model
             'estimated_cost' => $estimatedCost,
         ]);
     }
+
+    /**
+     * Log a conversational AI request with usage tracking.
+     *
+     * @param  string  $message  The message sent to the conversation agent
+     * @param  string  $agentId  The ElevenLabs agent ID used
+     */
+    public static function logConversationRequest(string $message, string $agentId): self
+    {
+        $characterCount = strlen($message);
+
+        // Conversational AI uses similar pricing to TTS
+        // Using flash model pricing as baseline
+        $costPerChar = 0.000024;
+        $estimatedCost = $characterCount * $costPerChar;
+
+        return self::create([
+            'user_id' => auth()->id(),
+            'service_type' => 'conversation',
+            'character_count' => $characterCount,
+            'voice_id' => $agentId, // Store agent ID in voice_id field
+            'model_id' => 'conversation_agent',
+            'estimated_cost' => $estimatedCost,
+        ]);
+    }
 }

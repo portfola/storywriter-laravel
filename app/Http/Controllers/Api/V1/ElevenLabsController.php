@@ -105,6 +105,14 @@ class ElevenLabsController extends Controller
                 ])->post("https://api.elevenlabs.io/v1/convai/conversation/{$request->sessionId}/message", [
                     'message' => $request->message,
                 ]);
+
+                // Log usage for conversation messages
+                if ($response->successful() && $request->message) {
+                    ElevenLabsUsage::logConversationRequest(
+                        message: $request->message,
+                        agentId: $request->agentId
+                    );
+                }
                 break;
 
             case 'end':
