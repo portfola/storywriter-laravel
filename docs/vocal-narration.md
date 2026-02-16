@@ -87,18 +87,18 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Create Usage Model
 
-- [ ] Generate Eloquent model
+- [x] Generate Eloquent model - Completed 2026-02-15
   ```bash
   php artisan make:model ElevenLabsUsage
   ```
 
-- [ ] Define fillable fields
+- [x] Define fillable fields - Completed 2026-02-15
   - `user_id`, `service_type`, `character_count`, `voice_id`, `model_id`, `estimated_cost`
 
-- [ ] Add relationship to User model
+- [x] Add relationship to User model - Completed 2026-02-15
   - `hasMany` relationship: `User::elevenLabsUsage()`
 
-- [ ] Create helper method `logTtsRequest()`
+- [x] Create helper method `logTtsRequest()` - Completed 2026-02-15
   - Calculate cost based on character count and model
   - Create database record
   - Location: `app/Models/ElevenLabsUsage.php`

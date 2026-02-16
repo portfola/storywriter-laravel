@@ -72,4 +72,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Story::class);
     }
+
+    public function elevenLabsUsage(): HasMany
+    {
+        return $this->hasMany(ElevenLabsUsage::class);
+    }
 }
