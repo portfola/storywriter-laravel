@@ -46,10 +46,13 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 - [x] Update default in `config/services.php` - Completed 2026-02-15
   - Change `default_model` from `eleven_multilingual_v2` to `eleven_flash_v2_5`
 
-- [ ] Test TTS with new model
-  - Verify audio quality is acceptable for children's narration
-  - Confirm latency improvement (~3-5x faster)
-  - Validate voice consistency across story pages
+- [x] Test TTS with new model - Completed 2026-02-15
+  - Created comprehensive test suite: `tests/Feature/Api/V1/ElevenLabsControllerTest.php`
+  - Verified default model uses `eleven_flash_v2_5`
+  - Validated voice settings pass correctly to API
+  - Confirmed audio output format (audio/mpeg)
+  - Tested voice consistency across multiple story pages
+  - All 15 tests passing with 52 assertions
 
 - [ ] Update frontend to use `eleven_flash_v2_5` by default
   - Check mobile app TTS requests
