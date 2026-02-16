@@ -264,9 +264,12 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
   - Documented all table columns, indexes, and purpose
   - Added comprehensive ElevenLabsUsage model methods documentation
   - Includes logging, daily limits, analytics, cost calculation, and relationships
-- [ ] Add API endpoint documentation
-  - OpenAPI/Swagger spec (optional)
-  - README with example requests
+- [x] Add API endpoint documentation - Completed 2026-02-15
+  - Created comprehensive `docs/api-elevenlabs.md` with all endpoints
+  - Includes authentication examples, request/response formats, error handling
+  - Added curl examples, JavaScript/React Native integration examples
+  - Documented rate limits, usage tracking, and cost calculations
+  - Covers all 4 endpoints: TTS, voices, SDK credentials, conversation proxy
 
 ### Phase 7: Deployment & Rollout 🚀
 
