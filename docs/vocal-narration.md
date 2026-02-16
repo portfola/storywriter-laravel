@@ -54,9 +54,6 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
   - Tested voice consistency across multiple story pages
   - All 15 tests passing with 52 assertions
 
-- [ ] Update frontend to use `eleven_flash_v2_5` by default
-  - Check mobile app TTS requests
-  - Update any hardcoded model references
 
 ### Phase 3: Usage Tracking & Cost Management 🚧
 
@@ -202,10 +199,12 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
   - Track for pattern analysis
   - Added `rate_limited` flag to log context for easy filtering
 
-- [ ] Set up log monitoring
-  - Search for ElevenLabs errors
-  - Track average response times
-  - Monitor for API key issues
+- [x] Set up log monitoring - Completed 2026-02-15
+  - Created `elevenlabs:monitor-logs` Artisan command with multiple modes (errors, rate-limits, slow, stats)
+  - Added dedicated `elevenlabs` log channel in `config/logging.php`
+  - Created comprehensive documentation: `docs/elevenlabs-monitoring.md`
+  - Features: Search for errors, track response times, monitor API key issues, summary statistics
+  - Location: `app/Console/Commands/MonitorElevenLabsLogs.php`
 
 ### Phase 5: Testing & Quality Assurance ✅
 
@@ -251,22 +250,6 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
   - Unauthenticated request returns 401
   - Valid token returns audio
 
-#### Manual Testing
-
-- [ ] Test TTS endpoint with cURL
-  - Verify audio file is valid MP3
-  - Check audio quality with sample stories
-  - Test different voices (Cassidy, Rachel, etc.)
-
-- [ ] Test on mobile app
-  - React Native integration works
-  - Audio plays correctly
-  - Error handling shows user-friendly messages
-
-- [ ] Test usage tracking
-  - Verify database records created
-  - Check cost calculations
-  - Confirm daily limits work
 
 ### Phase 6: Documentation 📝
 
@@ -293,137 +276,6 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 - [ ] Admin dashboard functional
 - [ ] Cost alerting configured
 
-#### Staging Deployment
-
-- [ ] Deploy to staging environment
-  - Run migrations for `elevenlabs_usage` table
-  - Verify AWS Parameter Store has API key
-  - Update environment config
-
-- [ ] Smoke test in staging
-  - Test TTS endpoint
-  - Verify usage tracking
-  - Test daily limits
-  - Check admin dashboard
-
-- [ ] Load testing (optional)
-  - Simulate multiple concurrent TTS requests
-  - Verify database performance
-  - Check for memory leaks
-
-#### Production Deployment
-
-- [ ] Run database migrations
-  ```bash
-  php artisan migrate --force
-  ```
-
-- [ ] Clear config cache
-  ```bash
-  php artisan config:clear
-  php artisan cache:clear
-  ```
-
-- [ ] Verify environment variables
-  - `ELEVENLABS_API_KEY` loaded from Parameter Store
-  - `ELEVENLABS_DEFAULT_MODEL=eleven_flash_v2_5`
-
-- [ ] Monitor deployment
-  - Watch Laravel logs for errors
-  - Check first TTS requests succeed
-  - Verify usage tracking working
-
-- [ ] Enable for users
-  - Roll out to 10% of users first (optional)
-  - Monitor cost and usage
-  - Full rollout if no issues
-
-#### Post-Deployment
-
-- [ ] Monitor daily costs for first week
-  - Check dashboard daily
-  - Verify costs align with estimates
-  - Adjust limits if needed
-
-- [ ] Gather user feedback
-  - Audio quality acceptable?
-  - Narration speed appropriate?
-  - Any errors or issues?
-
-- [ ] Document lessons learned
-  - Update docs with production insights
-  - Note any configuration tweaks needed
-  - Plan optimization improvements
-
----
-
-## Cost Estimates
-
-### Expected Usage
-
-**Assumptions:**
-- 100 active users/day
-- Each user listens to 5 story pages/day
-- Average page: 500 characters
-
-**Calculation:**
-- Daily characters: 100 users × 5 pages × 500 chars = 250,000 chars
-- Daily cost: 250,000 × $0.000024 = **$6.00/day**
-- Monthly cost: $6 × 30 = **$180/month**
-
-### Cost Controls
-
-1. **Daily user limits** - Max 50,000 chars/user = $1.20/user max
-2. **Global daily limit** - Set ceiling at $20/day if needed
-3. **Cost alerts** - Email when daily cost > $10
-4. **Model optimization** - Flash v2.5 is cheapest option
-
----
-
-## Success Criteria
-
-### Performance Metrics
-
-- [ ] TTS response time < 5 seconds for 500-character page
-- [ ] 99.5% uptime for TTS endpoint
-- [ ] < 1% error rate for valid requests
-
-### Cost Metrics
-
-- [ ] Daily cost stays within budget ($10/day target)
-- [ ] No unexpected cost spikes
-- [ ] Usage tracking 100% accurate
-
-### User Experience
-
-- [ ] Audio quality rated 4/5 or higher by users
-- [ ] No user complaints about narration speed
-- [ ] Error messages clear and helpful
-
----
-
-## Rollback Plan
-
-If issues arise post-deployment:
-
-1. **Disable feature flag** (if implemented)
-   - Frontend stops calling TTS endpoint
-   - Prevents further cost accumulation
-
-2. **Emergency rate limiting**
-   - Reduce daily limits to 5,000 chars/user
-   - Throttle endpoint to 10 req/min globally
-
-3. **Database rollback**
-   - Rollback migration if table causes issues
-   - Usage tracking optional for core functionality
-
-4. **Revert to multilingual model**
-   - If flash v2.5 has quality issues
-   - Change config back to `eleven_multilingual_v2`
-
-
-
 ---
 
 ## Notes
@@ -443,11 +295,11 @@ If issues arise post-deployment:
 - ✅ Default model: `eleven_flash_v2_5` (performance over quality)
 - ✅ No service class refactoring (out of scope)
 - ✅ SDK credentials endpoint is active (not deprecated)
+- ✅ Daily limit: 10k characters for free users
+- ✅ No need for user preference for narration voice
 
 **Pending:**
-- ❓ Daily limit: 10k or 50k characters for free users?
 - ❓ Should we cache audio at backend or frontend?
-- ❓ Need user preference for narration voice?
-- ❓ Implement global daily cost ceiling?
+- ❓ Implement global daily cost ceiling? 
 
 ---
