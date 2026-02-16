@@ -259,7 +259,11 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 - [x] Create `docs/elevenlabs.md` - Technical integration guide
 - [x] Create `docs/vocal-narration.md` - Implementation checklist (this file)
 - [x] Update `docs/CLAUDE.md` - Add ElevenLabs overview
-- [ ] Document usage tracking schema in database docs
+- [x] Document usage tracking schema in database docs - Completed 2026-02-15
+  - Added `create_elevenlabs_usage_table` to database migration list in CLAUDE.md
+  - Documented all table columns, indexes, and purpose
+  - Added comprehensive ElevenLabsUsage model methods documentation
+  - Includes logging, daily limits, analytics, cost calculation, and relationships
 - [ ] Add API endpoint documentation
   - OpenAPI/Swagger spec (optional)
   - README with example requests

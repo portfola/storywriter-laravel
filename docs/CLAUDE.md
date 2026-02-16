@@ -268,6 +268,17 @@ Key migrations:
 - `create_cache_table` - Cache storage
 - `create_jobs_table` - Queue jobs
 - `create_personal_access_tokens_table` - API tokens (Sanctum)
+- `create_elevenlabs_usage_table` - ElevenLabs API usage tracking and cost management
+  - `id` - Primary key
+  - `user_id` - Foreign key to users table (cascade on delete)
+  - `service_type` - Service used: 'tts' or 'conversation'
+  - `character_count` - Number of characters processed (integer)
+  - `voice_id` - ElevenLabs voice ID or agent ID (nullable)
+  - `model_id` - TTS model used (e.g., 'eleven_flash_v2_5', 'eleven_multilingual_v2', 'conversation_agent')
+  - `estimated_cost` - Calculated cost in USD (decimal:4)
+  - `created_at`, `updated_at` - Timestamps
+  - Indexes: `(user_id, created_at)` for daily usage queries, `service_type` for filtering
+  - Purpose: Track usage for daily limits (10k chars/day free tier), cost monitoring, and analytics
 
 ### User Model Admin Methods
 
@@ -292,4 +303,63 @@ User::storytellers()->get();
 if (!auth()->user()->isAdmin()) {
     abort(403, 'Access Denied: Admins Only');
 }
+```
+
+### ElevenLabsUsage Model Methods
+
+The `ElevenLabsUsage` model (`app/Models/ElevenLabsUsage.php`) provides comprehensive usage tracking and analytics for ElevenLabs API calls:
+
+**Logging Methods:**
+```php
+// Log a text-to-speech request
+ElevenLabsUsage::logTtsRequest($text, $voiceId, $modelId);
+
+// Log a conversational AI request
+ElevenLabsUsage::logConversationRequest($message, $agentId);
+```
+
+**Daily Limit Methods:**
+```php
+// Get total characters used today by a user
+$usage = ElevenLabsUsage::getTodayUsage($userId);
+
+// Get daily character limit for a user (returns 10,000 for free tier)
+$limit = ElevenLabsUsage::getDailyLimit($userId);
+
+// Check if additional characters would exceed daily limit
+$wouldExceed = ElevenLabsUsage::wouldExceedLimit($userId, $additionalChars);
+```
+
+**Analytics Methods:**
+```php
+// Get total requests for a period ('today', 'week', 'month')
+$requests = ElevenLabsUsage::getTotalRequests('today');
+
+// Get total characters processed
+$characters = ElevenLabsUsage::getTotalCharacters('week');
+
+// Get total estimated cost in USD
+$cost = ElevenLabsUsage::getTotalCost('month');
+
+// Get top users by usage
+$topUsers = ElevenLabsUsage::getTopUsers($limit = 10, $period = 'month');
+// Returns collection with: user_id, total_characters, total_cost, request_count
+
+// Get cost breakdown by model
+$modelCosts = ElevenLabsUsage::getCostByModel('month');
+// Returns collection with: model_id, total_characters, total_cost, request_count
+```
+
+**Cost Calculation:**
+- Flash/Turbo models: $0.000024 per character
+- Multilingual model: $0.000030 per character
+- Conversation agents: $0.000024 per character (baseline)
+
+**Relationship:**
+```php
+// Get user's ElevenLabs usage history
+$user->elevenLabsUsage()->get();
+
+// Get usage record's associated user
+$usage->user;
 ```
