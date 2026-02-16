@@ -105,10 +105,11 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Implement Usage Logging
 
-- [ ] Add usage logging to `ElevenLabsController::textToSpeech()`
+- [x] Add usage logging to `ElevenLabsController::textToSpeech()` - Completed 2026-02-15
   - Log after successful TTS request
   - Calculate cost: `strlen($text) * 0.000024` (flash model)
-  - Store in database via `ElevenLabsUsage::create()`
+  - Store in database via `ElevenLabsUsage::logTtsRequest()`
+  - Location: `app/Http/Controllers/Api/V1/ElevenLabsController.php` lines 147-169
 
 - [ ] Add usage logging to conversation endpoints (if applicable)
   - Check `conversationProxy()` method

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\ElevenLabsUsage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -144,12 +145,14 @@ class ElevenLabsController extends Controller
             return response()->json(['error' => 'ELEVENLABS_API_KEY missing'], 500);
         }
 
+        $modelId = $request->options['model_id'] ?? config('services.elevenlabs.default_model');
+
         $response = Http::withHeaders([
             'xi-api-key' => $apiKey,
             'Accept' => 'audio/mpeg',
         ])->post("https://api.elevenlabs.io/v1/text-to-speech/{$request->voiceId}", [
             'text' => $request->text,
-            'model_id' => $request->options['model_id'] ?? config('services.elevenlabs.default_model'),
+            'model_id' => $modelId,
             'voice_settings' => $request->options['voice_settings'] ?? [],
         ]);
 
@@ -159,6 +162,13 @@ class ElevenLabsController extends Controller
                 'details' => $response->json(),
             ], $response->status());
         }
+
+        // Log successful TTS request for usage tracking
+        ElevenLabsUsage::logTtsRequest(
+            text: $request->text,
+            voiceId: $request->voiceId,
+            modelId: $modelId
+        );
 
         return response($response->body(), 200)
             ->header('Content-Type', 'audio/mpeg');

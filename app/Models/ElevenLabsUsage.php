@@ -52,7 +52,6 @@ class ElevenLabsUsage extends Model
      * @param  string  $text  The text that was converted to speech
      * @param  string  $voiceId  The ElevenLabs voice ID used
      * @param  string  $modelId  The TTS model used
-     * @return self
      */
     public static function logTtsRequest(string $text, string $voiceId, string $modelId): self
     {
