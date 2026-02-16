@@ -5,7 +5,6 @@ namespace Tests\Feature\Console;
 use App\Models\ElevenLabsUsage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class MonitorElevenLabsCostTest extends TestCase
