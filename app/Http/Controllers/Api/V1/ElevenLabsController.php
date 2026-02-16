@@ -42,11 +42,17 @@ class ElevenLabsController extends Controller
         ]);
 
         if (! $response->successful()) {
-            Log::error('Failed to get ElevenLabs signed URL', [
+            $logLevel = $response->status() === 429 ? 'warning' : 'error';
+            $logMessage = $response->status() === 429
+                ? 'ElevenLabs rate limit exceeded on signed URL request'
+                : 'Failed to get ElevenLabs signed URL';
+
+            Log::log($logLevel, $logMessage, [
                 'user_id' => $request->user()?->id,
                 'agent_id' => $request->agentId,
                 'status' => $response->status(),
                 'response' => $response->json(),
+                'rate_limited' => $response->status() === 429,
             ]);
 
             return response()->json([
@@ -127,6 +133,18 @@ class ElevenLabsController extends Controller
         }
 
         if (! $response->successful()) {
+            // Log rate limit events from ElevenLabs
+            if ($response->status() === 429) {
+                Log::warning('ElevenLabs rate limit exceeded on conversation request', [
+                    'user_id' => $request->user()?->id,
+                    'agent_id' => $request->agentId,
+                    'action' => $request->action,
+                    'session_id' => $request->sessionId,
+                    'status' => 429,
+                    'response' => $response->json(),
+                ]);
+            }
+
             return response()->json([
                 'error' => 'ElevenLabs API request failed',
                 'details' => $response->json(),
@@ -202,7 +220,12 @@ class ElevenLabsController extends Controller
         $responseTime = round((microtime(true) - $startTime) * 1000, 2); // milliseconds
 
         if (! $response->successful()) {
-            Log::error('ElevenLabs TTS request failed', [
+            $logLevel = $response->status() === 429 ? 'warning' : 'error';
+            $logMessage = $response->status() === 429
+                ? 'ElevenLabs rate limit exceeded on TTS request'
+                : 'ElevenLabs TTS request failed';
+
+            Log::log($logLevel, $logMessage, [
                 'user_id' => $userId,
                 'text_length' => $textLength,
                 'voice_id' => $request->voiceId,
@@ -210,6 +233,7 @@ class ElevenLabsController extends Controller
                 'status_code' => $response->status(),
                 'response_time_ms' => $responseTime,
                 'error_details' => $response->json(),
+                'rate_limited' => $response->status() === 429,
             ]);
 
             return response()->json([
@@ -257,6 +281,15 @@ class ElevenLabsController extends Controller
         ])->get('https://api.elevenlabs.io/v1/voices');
 
         if (! $response->successful()) {
+            // Log rate limit events from ElevenLabs
+            if ($response->status() === 429) {
+                Log::warning('ElevenLabs rate limit exceeded on voices request', [
+                    'user_id' => auth()->id(),
+                    'status' => 429,
+                    'response' => $response->json(),
+                ]);
+            }
+
             return response()->json([
                 'error' => 'Failed to fetch voices',
                 'details' => $response->json(),

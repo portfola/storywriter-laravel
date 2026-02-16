@@ -196,10 +196,11 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
   - Use Laravel's logging channels
   - Logs request initiation, successful completion with metrics, and failures with error details
 
-- [ ] Log rate limit events
-  - When user hits daily limit
-  - When ElevenLabs returns 429
+- [x] Log rate limit events - Completed 2026-02-15
+  - When user hits daily limit (already logged with warning level)
+  - When ElevenLabs returns 429 (added logging for all endpoints)
   - Track for pattern analysis
+  - Added `rate_limited` flag to log context for easy filtering
 
 - [ ] Set up log monitoring
   - Search for ElevenLabs errors
