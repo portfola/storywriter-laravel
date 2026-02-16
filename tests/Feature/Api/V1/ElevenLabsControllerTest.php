@@ -443,4 +443,210 @@ class ElevenLabsControllerTest extends TestCase
         // But in tests with mocked HTTP, it should be nearly instant
         $this->assertLessThan(1, $duration, 'Mocked API should respond instantly');
     }
+
+    /** @test */
+    public function it_logs_usage_after_successful_tts_request()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        $text = 'This is a test narration for usage tracking.';
+        $voiceId = '56AoDkrOh6qfVPDXZ7Pt';
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => $voiceId,
+            ]);
+
+        $response->assertStatus(200);
+
+        // Verify usage was logged in database
+        $this->assertDatabaseHas('elevenlabs_usage', [
+            'user_id' => $user->id,
+            'service_type' => 'tts',
+            'character_count' => strlen($text),
+            'voice_id' => $voiceId,
+            'model_id' => 'eleven_flash_v2_5', // Default model
+        ]);
+
+        // Verify cost calculation is correct
+        $usage = \App\Models\ElevenLabsUsage::where('user_id', $user->id)->first();
+        $expectedCost = strlen($text) * 0.000024; // Flash model pricing
+        $this->assertEquals(number_format($expectedCost, 4), number_format((float) $usage->estimated_cost, 4));
+    }
+
+    /** @test */
+    public function it_calculates_correct_cost_for_flash_model()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // 1000 character text
+        $text = str_repeat('a', 1000);
+
+        $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        // Expected cost: 1000 chars * $0.000024 = $0.024
+        $usage = \App\Models\ElevenLabsUsage::where('user_id', $user->id)->first();
+        $this->assertEquals('0.0240', number_format((float) $usage->estimated_cost, 4));
+    }
+
+    /** @test */
+    public function it_calculates_correct_cost_for_multilingual_model()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // 1000 character text with multilingual model
+        $text = str_repeat('a', 1000);
+
+        $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+                'options' => [
+                    'model_id' => 'eleven_multilingual_v2',
+                ],
+            ]);
+
+        // Expected cost: 1000 chars * $0.000030 = $0.030
+        $usage = \App\Models\ElevenLabsUsage::where('user_id', $user->id)->first();
+        $this->assertEquals('eleven_multilingual_v2', $usage->model_id);
+        $this->assertEquals('0.0300', number_format((float) $usage->estimated_cost, 4));
+    }
+
+    /** @test */
+    public function it_does_not_log_usage_on_failed_tts_request()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response([
+                'detail' => [
+                    'message' => 'Invalid voice ID',
+                ],
+            ], 404),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => 'This should fail',
+                'voiceId' => 'invalid-voice-id',
+            ]);
+
+        $response->assertStatus(404);
+
+        // Verify NO usage was logged since request failed
+        $this->assertDatabaseMissing('elevenlabs_usage', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    /** @test */
+    public function it_tracks_multiple_tts_requests_per_user()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // Make 3 TTS requests
+        for ($i = 1; $i <= 3; $i++) {
+            $this->actingAs($user)
+                ->postJson('/api/conversation/tts', [
+                    'text' => "Story page {$i} narration text",
+                    'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+                ]);
+        }
+
+        // Verify 3 usage records were created
+        $usageCount = \App\Models\ElevenLabsUsage::where('user_id', $user->id)->count();
+        $this->assertEquals(3, $usageCount);
+
+        // Verify total character count
+        $totalChars = \App\Models\ElevenLabsUsage::where('user_id', $user->id)
+            ->sum('character_count');
+        $expectedChars = strlen('Story page 1 narration text')
+                       + strlen('Story page 2 narration text')
+                       + strlen('Story page 3 narration text');
+        $this->assertEquals($expectedChars, $totalChars);
+    }
+
+    /** @test */
+    public function it_associates_usage_records_with_correct_user()
+    {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // User 1 makes a TTS request
+        $this->actingAs($user1)
+            ->postJson('/api/conversation/tts', [
+                'text' => 'User 1 narration',
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        // User 2 makes a TTS request
+        $this->actingAs($user2)
+            ->postJson('/api/conversation/tts', [
+                'text' => 'User 2 narration',
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        // Verify each user has their own usage record
+        $this->assertDatabaseHas('elevenlabs_usage', [
+            'user_id' => $user1->id,
+            'character_count' => strlen('User 1 narration'),
+        ]);
+
+        $this->assertDatabaseHas('elevenlabs_usage', [
+            'user_id' => $user2->id,
+            'character_count' => strlen('User 2 narration'),
+        ]);
+
+        // Verify user 1's record doesn't belong to user 2
+        $user1Usage = \App\Models\ElevenLabsUsage::where('user_id', $user1->id)->count();
+        $user2Usage = \App\Models\ElevenLabsUsage::where('user_id', $user2->id)->count();
+
+        $this->assertEquals(1, $user1Usage);
+        $this->assertEquals(1, $user2Usage);
+    }
 }

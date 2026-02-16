@@ -117,10 +117,13 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
   - Location: `app/Http/Controllers/Api/V1/ElevenLabsController.php` lines 102-113
   - Location: `app/Models/ElevenLabsUsage.php` lines 82-100
 
-- [ ] Test usage logging
-  - Make TTS request
-  - Verify record created in `elevenlabs_usage` table
-  - Confirm cost calculation is accurate
+- [x] Test usage logging - Completed 2026-02-15
+  - Created comprehensive test suite with 6 tests
+  - Verifies usage records are created after successful TTS requests
+  - Validates cost calculations for flash and multilingual models
+  - Tests multi-user tracking and per-user isolation
+  - Confirms no logging on failed requests
+  - Location: `tests/Feature/Api/V1/ElevenLabsControllerTest.php` lines 448-611
 
 #### Daily Usage Limits
 
