@@ -127,26 +127,27 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Daily Usage Limits
 
-- [ ] Define daily character limits
+- [x] Define daily character limits - Completed 2026-02-15
   - Free tier: 10,000 characters/day (~10 pages)
   - Paid tier: 50,000 characters/day (~50 pages)
-  - Store in config or database
+  - Stored in `config/services.php` under `elevenlabs.daily_limit_free` and `elevenlabs.daily_limit_paid`
 
-- [ ] Implement limit check in `textToSpeech()`
-  - Query today's usage for authenticated user
-  - Compare against limit
+- [x] Implement limit check in `textToSpeech()` - Completed 2026-02-15
+  - Query today's usage for authenticated user via `ElevenLabsUsage::getTodayUsage()`
+  - Compare against limit via `ElevenLabsUsage::wouldExceedLimit()`
   - Return 429 error if exceeded
-  - Include usage info in error response
+  - Include usage info in error response with `limit_info` object
 
-- [ ] Add user-friendly error message
+- [x] Add user-friendly error message - Completed 2026-02-15
   - "Daily narration limit reached. Please try again tomorrow."
-  - Show characters used vs. limit
-  - Suggest upgrade for paid users (future)
+  - Shows characters_used, daily_limit, and requested_characters
+  - Location: `app/Http/Controllers/Api/V1/ElevenLabsController.php` lines 160-174
 
-- [ ] Test limit enforcement
-  - Simulate user exceeding daily limit
-  - Verify error response
-  - Confirm limit resets next day
+- [x] Test limit enforcement - Completed 2026-02-15
+  - Created 8 comprehensive test cases for daily limits
+  - Tests cover: exceeding limit, within limit, exact limit, reset on new day, multi-user isolation
+  - All tests passing (28 total ElevenLabs tests)
+  - Location: `tests/Feature/Api/V1/ElevenLabsControllerTest.php` lines 654-1000
 
 ### Phase 4: Monitoring & Observability 📊
 
@@ -408,20 +409,7 @@ If issues arise post-deployment:
    - If flash v2.5 has quality issues
    - Change config back to `eleven_multilingual_v2`
 
----
 
-## Future Enhancements
-
-**Out of scope for MVP, consider for v2:**
-
-- [ ] Backend audio caching (cache popular pages)
-- [ ] Voice cloning for custom character voices
-- [ ] Multi-language support using multilingual model
-- [ ] Batch pre-generation for trending stories
-- [ ] User voice preferences (speed, pitch adjustments)
-- [ ] Admin voice management UI
-- [ ] Usage analytics dashboard for users
-- [ ] Export audio files for offline listening
 
 ---
 
@@ -450,7 +438,3 @@ If issues arise post-deployment:
 - ❓ Implement global daily cost ceiling?
 
 ---
-
-**Owner:** Backend Team
-**Target Completion:** TBD
-**Priority:** High (Usage tracking) / Medium (Optimization)

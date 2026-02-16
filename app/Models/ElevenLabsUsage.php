@@ -102,4 +102,47 @@ class ElevenLabsUsage extends Model
             'estimated_cost' => $estimatedCost,
         ]);
     }
+
+    /**
+     * Get total character count used by a user today.
+     *
+     * @param  int  $userId  The user ID to check
+     * @return int Total characters used today
+     */
+    public static function getTodayUsage(int $userId): int
+    {
+        return self::where('user_id', $userId)
+            ->whereDate('created_at', today())
+            ->sum('character_count');
+    }
+
+    /**
+     * Get the daily character limit for a user.
+     * Currently uses free tier limit for all users.
+     * In the future, this can check user's subscription tier.
+     *
+     * @param  int  $userId  The user ID to check
+     * @return int Daily character limit
+     */
+    public static function getDailyLimit(int $userId): int
+    {
+        // TODO: Check user's subscription tier when implemented
+        // For now, all users get the free tier limit
+        return config('services.elevenlabs.daily_limit_free');
+    }
+
+    /**
+     * Check if a user has exceeded their daily usage limit.
+     *
+     * @param  int  $userId  The user ID to check
+     * @param  int  $additionalChars  Additional characters the user wants to use
+     * @return bool True if limit would be exceeded
+     */
+    public static function wouldExceedLimit(int $userId, int $additionalChars): bool
+    {
+        $currentUsage = self::getTodayUsage($userId);
+        $limit = self::getDailyLimit($userId);
+
+        return ($currentUsage + $additionalChars) > $limit;
+    }
 }

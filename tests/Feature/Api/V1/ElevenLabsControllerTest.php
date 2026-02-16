@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 /**
@@ -648,5 +649,350 @@ class ElevenLabsControllerTest extends TestCase
 
         $this->assertEquals(1, $user1Usage);
         $this->assertEquals(1, $user2Usage);
+    }
+
+    /** @test */
+    public function it_enforces_daily_character_limit()
+    {
+        $user = User::factory()->create();
+
+        // Set up a small daily limit for testing (default is 10000)
+        config(['services.elevenlabs.daily_limit_free' => 1000]);
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // Create usage record for today with 900 characters already used
+        \App\Models\ElevenLabsUsage::create([
+            'user_id' => $user->id,
+            'service_type' => 'tts',
+            'character_count' => 900,
+            'voice_id' => '56AoDkrOh6qfVPDXZ7Pt',
+            'model_id' => 'eleven_flash_v2_5',
+            'estimated_cost' => 900 * 0.000024,
+            'created_at' => now(),
+        ]);
+
+        // Try to use 150 more characters (would exceed limit of 1000)
+        $text = str_repeat('a', 150);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(429)
+            ->assertJson([
+                'error' => 'Daily narration limit reached. Please try again tomorrow.',
+                'limit_info' => [
+                    'characters_used' => 900,
+                    'daily_limit' => 1000,
+                    'requested_characters' => 150,
+                ],
+            ]);
+
+        // Verify no API request was made to ElevenLabs
+        Http::assertNothingSent();
+    }
+
+    /** @test */
+    public function it_allows_tts_requests_within_daily_limit()
+    {
+        $user = User::factory()->create();
+
+        config(['services.elevenlabs.daily_limit_free' => 1000]);
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // Create usage record for today with 800 characters already used
+        \App\Models\ElevenLabsUsage::create([
+            'user_id' => $user->id,
+            'service_type' => 'tts',
+            'character_count' => 800,
+            'voice_id' => '56AoDkrOh6qfVPDXZ7Pt',
+            'model_id' => 'eleven_flash_v2_5',
+            'estimated_cost' => 800 * 0.000024,
+            'created_at' => now(),
+        ]);
+
+        // Use 150 more characters (total 950, within limit of 1000)
+        $text = str_repeat('a', 150);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'audio/mpeg');
+
+        // Verify API request was made to ElevenLabs
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'api.elevenlabs.io/v1/text-to-speech');
+        });
+
+        // Verify usage was logged
+        $totalUsage = \App\Models\ElevenLabsUsage::where('user_id', $user->id)->count();
+        $this->assertEquals(2, $totalUsage);
+    }
+
+    /** @test */
+    public function it_resets_usage_limit_on_new_day()
+    {
+        $user = User::factory()->create();
+
+        config(['services.elevenlabs.daily_limit_free' => 1000]);
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // Create usage record for YESTERDAY with 950 characters used
+        // Use a carbon instance and travel back in time for testing
+        $this->travel(-1)->days();
+
+        \App\Models\ElevenLabsUsage::create([
+            'user_id' => $user->id,
+            'service_type' => 'tts',
+            'character_count' => 950,
+            'voice_id' => '56AoDkrOh6qfVPDXZ7Pt',
+            'model_id' => 'eleven_flash_v2_5',
+            'estimated_cost' => 950 * 0.000024,
+        ]);
+
+        // Travel back to today
+        $this->travelBack();
+
+        // Verify today's usage is 0 (yesterday doesn't count)
+        $todayUsage = \App\Models\ElevenLabsUsage::getTodayUsage($user->id);
+        $this->assertEquals(0, $todayUsage);
+
+        // Try to use 100 characters today (should succeed because yesterday's usage doesn't count)
+        $text = str_repeat('a', 100);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'audio/mpeg');
+
+        // Verify API request was made
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'api.elevenlabs.io/v1/text-to-speech');
+        });
+    }
+
+    /** @test */
+    public function it_calculates_total_usage_correctly_with_multiple_requests_today()
+    {
+        $user = User::factory()->create();
+
+        config(['services.elevenlabs.daily_limit_free' => 1000]);
+
+        // Create multiple usage records for today
+        \App\Models\ElevenLabsUsage::create([
+            'user_id' => $user->id,
+            'service_type' => 'tts',
+            'character_count' => 300,
+            'voice_id' => '56AoDkrOh6qfVPDXZ7Pt',
+            'model_id' => 'eleven_flash_v2_5',
+            'estimated_cost' => 300 * 0.000024,
+            'created_at' => now(),
+        ]);
+
+        \App\Models\ElevenLabsUsage::create([
+            'user_id' => $user->id,
+            'service_type' => 'tts',
+            'character_count' => 400,
+            'voice_id' => '56AoDkrOh6qfVPDXZ7Pt',
+            'model_id' => 'eleven_flash_v2_5',
+            'estimated_cost' => 400 * 0.000024,
+            'created_at' => now(),
+        ]);
+
+        // Total usage today: 700 characters
+        // Try to use 350 more characters (would exceed limit of 1000)
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        $text = str_repeat('a', 350);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(429)
+            ->assertJson([
+                'error' => 'Daily narration limit reached. Please try again tomorrow.',
+                'limit_info' => [
+                    'characters_used' => 700,
+                    'daily_limit' => 1000,
+                    'requested_characters' => 350,
+                ],
+            ]);
+    }
+
+    /** @test */
+    public function it_isolates_daily_limits_between_different_users()
+    {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        config(['services.elevenlabs.daily_limit_free' => 1000]);
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // User 1 has used 950 characters today (near limit)
+        \App\Models\ElevenLabsUsage::create([
+            'user_id' => $user1->id,
+            'service_type' => 'tts',
+            'character_count' => 950,
+            'voice_id' => '56AoDkrOh6qfVPDXZ7Pt',
+            'model_id' => 'eleven_flash_v2_5',
+            'estimated_cost' => 950 * 0.000024,
+            'created_at' => now(),
+        ]);
+
+        // User 2 tries to use 100 characters (should succeed - separate limit)
+        $text = str_repeat('a', 100);
+
+        $response = $this->actingAs($user2)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'audio/mpeg');
+
+        // User 1 tries to use 100 characters (should fail - exceeded their limit)
+        $response = $this->actingAs($user1)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(429)
+            ->assertJson([
+                'error' => 'Daily narration limit reached. Please try again tomorrow.',
+            ]);
+    }
+
+    /** @test */
+    public function it_allows_exact_limit_usage()
+    {
+        $user = User::factory()->create();
+
+        config(['services.elevenlabs.daily_limit_free' => 1000]);
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RSU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // Use exactly 1000 characters (at limit, should succeed)
+        $text = str_repeat('a', 1000);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertHeader('Content-Type', 'audio/mpeg');
+
+        // Try to use 1 more character (should fail - exceeds limit)
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => 'a',
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(429);
+    }
+
+    /** @test */
+    public function it_logs_limit_exceeded_events()
+    {
+        $user = User::factory()->create();
+
+        config(['services.elevenlabs.daily_limit_free' => 1000]);
+
+        // Create usage that exceeds the limit
+        \App\Models\ElevenLabsUsage::create([
+            'user_id' => $user->id,
+            'service_type' => 'tts',
+            'character_count' => 950,
+            'voice_id' => '56AoDkrOh6qfVPDXZ7Pt',
+            'model_id' => 'eleven_flash_v2_5',
+            'estimated_cost' => 950 * 0.000024,
+            'created_at' => now(),
+        ]);
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response(
+                base64_decode('SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA'),
+                200,
+                ['Content-Type' => 'audio/mpeg']
+            ),
+        ]);
+
+        // Capture log output
+        Log::spy();
+
+        $text = str_repeat('a', 100);
+
+        $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => $text,
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        // Verify warning was logged
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->with('User exceeded daily TTS limit', \Mockery::on(function ($context) use ($user) {
+                return $context['user_id'] === $user->id &&
+                       $context['current_usage'] === 950 &&
+                       $context['limit'] === 1000 &&
+                       $context['requested_chars'] === 100;
+            }));
     }
 }

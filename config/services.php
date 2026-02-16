@@ -51,6 +51,10 @@ return [
         'default_model' => env('ELEVENLABS_DEFAULT_MODEL', 'eleven_flash_v2_5'),
         'timeout' => env('ELEVENLABS_TIMEOUT', 30),
         'base_url' => 'https://api.elevenlabs.io/v1',
+
+        // Daily usage limits (characters per user per day)
+        'daily_limit_free' => env('ELEVENLABS_DAILY_LIMIT_FREE', 10000),
+        'daily_limit_paid' => env('ELEVENLABS_DAILY_LIMIT_PAID', 50000),
     ],
 
     /*

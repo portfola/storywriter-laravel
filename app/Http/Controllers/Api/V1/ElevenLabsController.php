@@ -153,6 +153,31 @@ class ElevenLabsController extends Controller
             return response()->json(['error' => 'ELEVENLABS_API_KEY missing'], 500);
         }
 
+        // Check daily usage limit
+        $userId = auth()->id();
+        $textLength = strlen($request->text);
+
+        if (ElevenLabsUsage::wouldExceedLimit($userId, $textLength)) {
+            $currentUsage = ElevenLabsUsage::getTodayUsage($userId);
+            $limit = ElevenLabsUsage::getDailyLimit($userId);
+
+            Log::warning('User exceeded daily TTS limit', [
+                'user_id' => $userId,
+                'current_usage' => $currentUsage,
+                'limit' => $limit,
+                'requested_chars' => $textLength,
+            ]);
+
+            return response()->json([
+                'error' => 'Daily narration limit reached. Please try again tomorrow.',
+                'limit_info' => [
+                    'characters_used' => $currentUsage,
+                    'daily_limit' => $limit,
+                    'requested_characters' => $textLength,
+                ],
+            ], 429);
+        }
+
         $modelId = $request->options['model_id'] ?? config('services.elevenlabs.default_model');
 
         $response = Http::withHeaders([
