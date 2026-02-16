@@ -110,13 +110,13 @@ All endpoints are protected by `auth:sanctum` middleware and require authenticat
 - Session-based conversation management
 - Request validation and error handling
 - Logging for monitoring and debugging
+- Usage tracking database table (`elevenlabs_usage`)
+- Cost monitoring and daily limits (10k chars/day free tier)
+- Admin analytics dashboard integration
 
-🚧 **Not Yet Implemented:**
+🚧 **Future Enhancements:**
 - Dedicated service class (logic is currently in controller)
 - Custom exception classes for granular error handling
-- Usage tracking database table
-- Cost monitoring dashboard
-- Rate limiting (beyond Laravel's default throttling)
 - Backend audio caching
 
 ---
@@ -269,7 +269,7 @@ ElevenLabs Agents combine four AI technologies:
 
 ### Two Implementation Approaches
 
-#### Approach 1: Signed URL (Deprecated)
+#### Approach 1: Signed URL (Active — used for Conversational Agents)
 
 **Endpoint:** `POST /api/conversation/sdk-credentials`
 
@@ -289,7 +289,7 @@ Frontend receives a signed WebSocket URL and connects directly to ElevenLabs.
 }
 ```
 
-**Status:** ⚠️ Deprecated - Use backend proxy instead
+**Status:** ✅ Active — used by the frontend ElevenLabs SDK for conversational agents
 
 #### Approach 2: Backend Proxy (Recommended)
 
@@ -433,7 +433,7 @@ use App\Http\Controllers\Api\V1\ElevenLabsController;
 
 // ElevenLabs endpoints - require authentication
 Route::prefix('conversation')->middleware('auth:sanctum')->group(function () {
-    Route::post('/sdk-credentials', [ElevenLabsController::class, 'sdkCredentials']); // Deprecated
+    Route::post('/sdk-credentials', [ElevenLabsController::class, 'sdkCredentials']);
     Route::post('/proxy', [ElevenLabsController::class, 'conversationProxy']);
     Route::post('/tts', [ElevenLabsController::class, 'textToSpeech']);
     Route::get('/voices', [ElevenLabsController::class, 'voices']);
@@ -1251,7 +1251,6 @@ xi-api-key: {your_api_key}
 
 ## Related Documentation
 
-- **Backend Implementation Plan:** [docs/vocal-narration-backend.md](./vocal-narration-backend.md)
 - **Frontend Implementation:** [docs/vocal-narration.md](./vocal-narration.md)
 - **Project Overview:** [docs/CLAUDE.md](./CLAUDE.md)
 - **API Documentation:** [docs/api-stories-v1.md](./api-stories-v1.md)

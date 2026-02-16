@@ -12,7 +12,6 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 **Related Documentation:**
 - [docs/elevenlabs.md](./elevenlabs.md) - Detailed ElevenLabs integration guide with code examples
-- [docs/vocal-narration-backend.md](./vocal-narration-backend.md) - Original detailed specification
 
 
 ### Summary
