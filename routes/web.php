@@ -12,6 +12,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])->name('dashboard.analytics');
+    Route::get('/dashboard/elevenlabs-usage', [DashboardController::class, 'elevenLabsUsage'])->name('dashboard.elevenlabs-usage');
     Route::get('/dashboard/stories/{story}', [DashboardController::class, 'show'])->name('dashboard.stories.show');
 });
 

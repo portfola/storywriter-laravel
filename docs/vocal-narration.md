@@ -155,21 +155,21 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Admin Dashboard
 
-- [ ] Create admin usage overview page
+- [x] Create admin usage overview page - Completed 2026-02-15
   - Total TTS requests today/week/month
   - Total characters processed
   - Total estimated cost
   - Top users by usage
 
-- [ ] Add usage charts
+- [x] Add usage charts - Completed 2026-02-15
   - Daily character usage trend (last 30 days)
   - Cost breakdown by model (flash vs. multilingual)
   - Per-user usage statistics
 
-- [ ] Create route and view
+- [x] Create route and view - Completed 2026-02-15
   - `GET /dashboard/elevenlabs-usage`
   - Require admin authentication
-  - Location: `DashboardController` or new `ElevenLabsUsageController`
+  - Location: `DashboardController::elevenLabsUsage()`
 
 #### Cost Alerting
 

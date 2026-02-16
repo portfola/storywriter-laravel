@@ -145,4 +145,105 @@ class ElevenLabsUsage extends Model
 
         return ($currentUsage + $additionalChars) > $limit;
     }
+
+    /**
+     * Get total TTS requests for a given time period.
+     *
+     * @param  string  $period  'today', 'week', 'month'
+     * @return int Total requests
+     */
+    public static function getTotalRequests(string $period = 'today'): int
+    {
+        $query = self::query();
+
+        return match ($period) {
+            'today' => $query->whereDate('created_at', today())->count(),
+            'week' => $query->where('created_at', '>=', now()->subDays(7))->count(),
+            'month' => $query->where('created_at', '>=', now()->subDays(30))->count(),
+            default => $query->whereDate('created_at', today())->count(),
+        };
+    }
+
+    /**
+     * Get total characters processed for a given time period.
+     *
+     * @param  string  $period  'today', 'week', 'month'
+     * @return int Total characters
+     */
+    public static function getTotalCharacters(string $period = 'today'): int
+    {
+        $query = self::query();
+
+        return match ($period) {
+            'today' => $query->whereDate('created_at', today())->sum('character_count'),
+            'week' => $query->where('created_at', '>=', now()->subDays(7))->sum('character_count'),
+            'month' => $query->where('created_at', '>=', now()->subDays(30))->sum('character_count'),
+            default => $query->whereDate('created_at', today())->sum('character_count'),
+        };
+    }
+
+    /**
+     * Get total estimated cost for a given time period.
+     *
+     * @param  string  $period  'today', 'week', 'month'
+     * @return float Total cost in USD
+     */
+    public static function getTotalCost(string $period = 'today'): float
+    {
+        $query = self::query();
+
+        $cost = match ($period) {
+            'today' => $query->whereDate('created_at', today())->sum('estimated_cost'),
+            'week' => $query->where('created_at', '>=', now()->subDays(7))->sum('estimated_cost'),
+            'month' => $query->where('created_at', '>=', now()->subDays(30))->sum('estimated_cost'),
+            default => $query->whereDate('created_at', today())->sum('estimated_cost'),
+        };
+
+        return (float) $cost;
+    }
+
+    /**
+     * Get top users by usage.
+     *
+     * @param  int  $limit  Number of top users to return
+     * @param  string  $period  'today', 'week', 'month'
+     */
+    public static function getTopUsers(int $limit = 10, string $period = 'month'): \Illuminate\Support\Collection
+    {
+        $query = self::with('user')
+            ->selectRaw('user_id, SUM(character_count) as total_characters, SUM(estimated_cost) as total_cost, COUNT(*) as request_count');
+
+        $query = match ($period) {
+            'today' => $query->whereDate('created_at', today()),
+            'week' => $query->where('created_at', '>=', now()->subDays(7)),
+            'month' => $query->where('created_at', '>=', now()->subDays(30)),
+            default => $query->where('created_at', '>=', now()->subDays(30)),
+        };
+
+        return $query->groupBy('user_id')
+            ->orderByDesc('total_cost')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Get cost breakdown by model.
+     *
+     * @param  string  $period  'today', 'week', 'month'
+     */
+    public static function getCostByModel(string $period = 'month'): \Illuminate\Support\Collection
+    {
+        $query = self::selectRaw('model_id, SUM(character_count) as total_characters, SUM(estimated_cost) as total_cost, COUNT(*) as request_count');
+
+        $query = match ($period) {
+            'today' => $query->whereDate('created_at', today()),
+            'week' => $query->where('created_at', '>=', now()->subDays(7)),
+            'month' => $query->where('created_at', '>=', now()->subDays(30)),
+            default => $query->where('created_at', '>=', now()->subDays(30)),
+        };
+
+        return $query->groupBy('model_id')
+            ->orderByDesc('total_cost')
+            ->get();
+    }
 }

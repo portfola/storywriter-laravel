@@ -4,9 +4,14 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-8">
         <h1 class="text-3xl font-bold">Admin Dashboard</h1>
-        <a href="{{ route('dashboard.analytics') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            View Analytics
-        </a>
+        <div class="flex gap-2">
+            <a href="{{ route('dashboard.analytics') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                View Analytics
+            </a>
+            <a href="{{ route('dashboard.elevenlabs-usage') }}" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                ElevenLabs Usage
+            </a>
+        </div>
     </div>
 
     {{-- Recent Users --}}
