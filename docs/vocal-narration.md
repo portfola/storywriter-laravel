@@ -228,10 +228,11 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
     - `getTopUsers()`, `getCostByModel()` - aggregation methods
     - Type casting for character_count (integer) and estimated_cost (decimal)
 
-- [ ] Test daily limit logic
-  - User within limit (should succeed)
-  - User exceeds limit (should fail with 429)
-  - Limit reset on new day
+- [x] Test daily limit logic - Completed 2026-02-15
+  - User within limit (should succeed) ✅ Tested in integration tests
+  - User exceeds limit (should fail with 429) ✅ Tested in integration tests
+  - Limit reset on new day ✅ Tested in integration tests
+  - Note: Implemented at integration level in ElevenLabsControllerTest lines 654-949
 
 #### Integration Tests
 
