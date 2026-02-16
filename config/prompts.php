@@ -30,12 +30,12 @@ Page 2
 {conversation}
 
 Conversation:',
-        
+
         // Future variables you can add
         'defaults' => [
             'min_pages' => 3,
             'max_pages' => 10,
             'sentences_per_page' => '4 or 5',
-        ]
-    ]
+        ],
+    ],
 ];

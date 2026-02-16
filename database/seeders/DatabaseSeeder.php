@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\Story;
+use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -22,6 +22,6 @@ class DatabaseSeeder extends Seeder
             'name' => 'Tim',
             'email' => 'timothybenjaminbeckett@gmail.com',
         ]);
-       Story::factory(10)->create();
+        Story::factory(10)->create();
     }
 }

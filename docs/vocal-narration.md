@@ -38,12 +38,12 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Update Default TTS Model
 
-- [ ] Update default model in `ElevenLabsController::textToSpeech()`
+- [x] Update default model in `ElevenLabsController::textToSpeech()` - Completed 2026-02-15
   - Current: `eleven_multilingual_v2`
   - New: `eleven_flash_v2_5`
   - Location: `app/Http/Controllers/Api/V1/ElevenLabsController.php` line 152
 
-- [ ] Update default in `config/services.php`
+- [x] Update default in `config/services.php` - Completed 2026-02-15
   - Change `default_model` from `eleven_multilingual_v2` to `eleven_flash_v2_5`
 
 - [ ] Test TTS with new model

@@ -1,14 +1,13 @@
 <?php
 
 // app/Http/Controllers/Api/AuthController.php
+
 namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
-
 
 class AuthController extends Controller
 {
@@ -31,14 +30,15 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user' => $user
+            'user' => $user,
         ]);
     }
-    
+
     public function heartbeat(Request $request)
     {
         // Log "Time on App" here (e.g., update a 'last_seen_at' column)
         $request->user()->update(['last_seen_at' => now()]);
+
         return response()->noContent();
     }
 }

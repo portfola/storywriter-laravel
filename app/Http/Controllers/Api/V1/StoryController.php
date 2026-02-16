@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use App\Http\Requests\StoreStoryRequest;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreStoryRequest;
 use App\Http\Requests\UpdateStoryRequest;
 use App\Http\Resources\StoryResource;
 use App\Models\Story;
@@ -30,7 +30,7 @@ class StoryController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(StoreStoryRequest $request)
-{
+    {
         // 1. Get the validated data from the request
         $data = $request->validated();
 
@@ -48,15 +48,14 @@ class StoryController extends Controller
         return $story->toResource();
     }
 
-
     /**
      * Update the specified resource in storage.
      */
     public function update(UpdateStoryRequest $request, Story $story)
     {
-        $story->update($request->validated()); 
+        $story->update($request->validated());
 
-        return $story->toResource(); 
+        return $story->toResource();
     }
 
     /**

@@ -25,7 +25,7 @@ class AwsSsmServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (!config('aws-ssm.enabled')) {
+        if (! config('aws-ssm.enabled')) {
             return;
         }
 
@@ -40,7 +40,7 @@ class AwsSsmServiceProvider extends ServiceProvider
     protected function loadParametersFromSsm(): void
     {
         $cacheTtl = min(config('aws-ssm.cache_ttl', 300), 3600); // Max 1 hour
-        $cacheKey = 'aws_ssm_parameters_' . config('app.env'); // Environment-specific cache key
+        $cacheKey = 'aws_ssm_parameters_'.config('app.env'); // Environment-specific cache key
 
         // Try to get from cache first
         if ($cacheTtl > 0) {
@@ -48,13 +48,14 @@ class AwsSsmServiceProvider extends ServiceProvider
                 $cachedParams = Cache::get($cacheKey);
                 if ($cachedParams !== null) {
                     $this->applyParameters($cachedParams);
+
                     return;
                 }
             } catch (\Exception $e) {
                 // Cache might not be available yet (e.g., during initial deployment when cache table doesn't exist)
                 // Continue to fetch from SSM
                 Log::debug('Cache not available, fetching from SSM', [
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -66,14 +67,14 @@ class AwsSsmServiceProvider extends ServiceProvider
             $this->validateRequiredParameters($parameters);
 
             // Cache the parameters
-            if ($cacheTtl > 0 && !empty($parameters)) {
+            if ($cacheTtl > 0 && ! empty($parameters)) {
                 try {
                     Cache::put($cacheKey, $parameters, $cacheTtl);
                 } catch (\Exception $e) {
                     // Cache might not be available yet (e.g., during initial deployment)
                     // Continue without caching
                     Log::debug('Unable to cache SSM parameters', [
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -101,6 +102,7 @@ class AwsSsmServiceProvider extends ServiceProvider
      * Fetch parameters from AWS SSM Parameter Store.
      *
      * @return array<string, string> Associative array mapping config keys to parameter values
+     *
      * @throws SsmException If AWS SSM API call fails
      */
     protected function fetchParametersFromSsm(): array
@@ -116,7 +118,7 @@ class AwsSsmServiceProvider extends ServiceProvider
             ],
         ]);
 
-        $pathPrefix = rtrim(config('aws-ssm.path_prefix'), '/') . '/';
+        $pathPrefix = rtrim(config('aws-ssm.path_prefix'), '/').'/';
         $parameterMapping = config('aws-ssm.parameters', []);
 
         if (empty($parameterMapping)) {
@@ -126,7 +128,7 @@ class AwsSsmServiceProvider extends ServiceProvider
         // Build list of full parameter names to fetch
         $parameterNames = [];
         foreach ($parameterMapping as $configKey => $ssmParamName) {
-            $parameterNames[] = $pathPrefix . $ssmParamName;
+            $parameterNames[] = $pathPrefix.$ssmParamName;
         }
 
         // Pre-build reverse mapping for O(1) lookups
@@ -154,7 +156,7 @@ class AwsSsmServiceProvider extends ServiceProvider
             }
 
             // Log any invalid parameters
-            if (!empty($result['InvalidParameters'])) {
+            if (! empty($result['InvalidParameters'])) {
                 Log::warning('AWS SSM: Some parameters were not found', [
                     'invalid' => $result['InvalidParameters'],
                     'path_prefix' => $pathPrefix,
@@ -176,13 +178,13 @@ class AwsSsmServiceProvider extends ServiceProvider
         $missingKeys = [];
 
         foreach ($requiredKeys as $configKey => $ssmParamName) {
-            if (!isset($parameters[$configKey]) || empty($parameters[$configKey])) {
+            if (! isset($parameters[$configKey]) || empty($parameters[$configKey])) {
                 $missingKeys[] = $ssmParamName;
             }
         }
 
-        if (!empty($missingKeys)) {
-            $message = 'AWS SSM: Required parameters are missing: ' . implode(', ', $missingKeys);
+        if (! empty($missingKeys)) {
+            $message = 'AWS SSM: Required parameters are missing: '.implode(', ', $missingKeys);
 
             Log::critical($message, [
                 'missing_parameters' => $missingKeys,
@@ -211,7 +213,7 @@ class AwsSsmServiceProvider extends ServiceProvider
 
         if (app()->environment('production', 'staging')) {
             throw new RuntimeException(
-                'Critical: Unable to load required SSM parameters - ' . $e->getAwsErrorCode(),
+                'Critical: Unable to load required SSM parameters - '.$e->getAwsErrorCode(),
                 0,
                 $e
             );

@@ -26,7 +26,7 @@ return [
     |
     */
 
-    'path_prefix' => env('AWS_SSM_PATH_PREFIX', '/storywriter/' . env('APP_ENV', 'local') . '/'),
+    'path_prefix' => env('AWS_SSM_PATH_PREFIX', '/storywriter/'.env('APP_ENV', 'local').'/'),
 
     /*
     |--------------------------------------------------------------------------

@@ -4,9 +4,8 @@ namespace Tests\Feature\Api\V1;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use Illuminate\Support\Facades\Http;
-
+use Tests\TestCase;
 
 /**
  * StoryGenerationTest
@@ -62,7 +61,7 @@ class StoryGenerationTest extends TestCase
         $response = $this->postJson('/api/stories/generate', []);
 
         $response->assertStatus(422)
-                 ->assertJsonValidationErrors(['transcript']);
+            ->assertJsonValidationErrors(['transcript']);
     }
 
     /** @test */
@@ -77,22 +76,22 @@ class StoryGenerationTest extends TestCase
                 'choices' => [
                     [
                         'message' => [
-                            'content' => 'Debug story from test.'
+                            'content' => 'Debug story from test.',
                         ],
                     ],
                 ],
             ], 200),
             'api.together.xyz/v1/images/generations' => Http::response([
                 'data' => [
-                    ['url' => 'https://example.com/test-image.jpg']
-                ]
+                    ['url' => 'https://example.com/test-image.jpg'],
+                ],
             ], 200),
         ]);
 
         $payload = [
             'transcript' => 'The child wants a story about a dragon.',
             'options' => [
-                'maxTokens'   => 500,
+                'maxTokens' => 500,
                 'temperature' => 0.7,
             ],
         ];
@@ -103,14 +102,14 @@ class StoryGenerationTest extends TestCase
         $response->dump();
 
         $response->assertStatus(200)
-                 ->assertJsonStructure([
-                     'data' => ['story']
-                 ])
-                 ->assertJsonPath('data.story', function ($story) {
-                     // Story should contain both image markdown and the text
-                     return str_contains($story, '![](') &&
-                            str_contains($story, 'Debug story from test.');
-                 });
+            ->assertJsonStructure([
+                'data' => ['story'],
+            ])
+            ->assertJsonPath('data.story', function ($story) {
+                // Story should contain both image markdown and the text
+                return str_contains($story, '![](') &&
+                       str_contains($story, 'Debug story from test.');
+            });
     }
 
     /** @test */
@@ -122,21 +121,21 @@ class StoryGenerationTest extends TestCase
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
                 'error' => [
-                    'message' => 'Something went wrong'
-                ]
+                    'message' => 'Something went wrong',
+                ],
             ], 400),
         ]);
 
         $payload = [
             'transcript' => 'Test transcript',
-            'options' => []
+            'options' => [],
         ];
 
         $response = $this->postJson('/api/stories/generate', $payload);
 
         $response->assertStatus(503)
-                 ->assertJson([
-                     'error' => 'Story text generation failed',
-                 ]);
+            ->assertJson([
+                'error' => 'Story text generation failed',
+            ]);
     }
 }

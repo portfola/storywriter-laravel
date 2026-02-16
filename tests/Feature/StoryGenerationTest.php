@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Story;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -17,17 +17,17 @@ class StoryGenerationTest extends TestCase
     {
         // 1. ARRANGEMENT
         $user = User::factory()->create();
-        
+
         Http::fake([
             'api.together.xyz/*' => Http::response([
                 'choices' => [
                     [
                         'message' => [
-                            'content' => "Title: The Brave Test\n\nOnce upon a time..."
-                        ]
-                    ]
-                ]
-            ], 200)
+                            'content' => "Title: The Brave Test\n\nOnce upon a time...",
+                        ],
+                    ],
+                ],
+            ], 200),
         ]);
 
         // 2. ACTION (Using the CLEAN URL)
@@ -41,13 +41,13 @@ class StoryGenerationTest extends TestCase
         // Check strict fields (User, Name) - NOTE: 'slug' is NOT here
         $this->assertDatabaseHas('stories', [
             'user_id' => $user->id,
-            'name'    => 'The Brave Test',
+            'name' => 'The Brave Test',
         ]);
 
         // Check the slug separately (to handle the random suffix)
         $story = Story::where('name', 'The Brave Test')->first();
-        $this->assertNotNull($story, "Story was not saved to DB!");
-        $this->assertStringStartsWith('the-brave-test', $story->slug); 
+        $this->assertNotNull($story, 'Story was not saved to DB!');
+        $this->assertStringStartsWith('the-brave-test', $story->slug);
     }
 
     /** @test */

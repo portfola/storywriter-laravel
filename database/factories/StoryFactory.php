@@ -18,9 +18,9 @@ class StoryFactory extends Factory
     {
         return [
             'user_id' => \App\Models\User::factory(),
-            'name'    => fake()->sentence(),
-            'slug'    => fake()->slug(),
-            'body'    => fake()->paragraph(),
+            'name' => fake()->sentence(),
+            'slug' => fake()->slug(),
+            'body' => fake()->paragraph(),
         ];
     }
 }

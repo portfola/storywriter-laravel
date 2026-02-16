@@ -29,8 +29,8 @@ class StoryTest extends TestCase
         $response->assertJsonCount(2, 'data');
         $response->assertJsonStructure([
             'data' => [
-                ['id', 'name', 'slug', 'body', 'prompt', 'user_id', 'created_at', 'updated_at']
-            ]
+                ['id', 'name', 'slug', 'body', 'prompt', 'user_id', 'created_at', 'updated_at'],
+            ],
         ]);
     }
 
@@ -43,21 +43,21 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act: GET by slug (route key)
-        $response = $this->getJson('/api/v1/stories/' . $story->slug);
+        $response = $this->getJson('/api/v1/stories/'.$story->slug);
 
         // Assert: 200 with the full resource shape and correct values
         $response->assertOk();
         $response->assertJsonStructure([
-            'data' => ['id', 'name', 'slug', 'body', 'prompt', 'user_id', 'created_at', 'updated_at']
+            'data' => ['id', 'name', 'slug', 'body', 'prompt', 'user_id', 'created_at', 'updated_at'],
         ]);
         $response->assertJson([
             'data' => [
-                'id'      => $story->id,
-                'name'    => $story->name,
-                'slug'    => $story->slug,
-                'body'    => $story->body,
+                'id' => $story->id,
+                'name' => $story->name,
+                'slug' => $story->slug,
+                'body' => $story->body,
                 'user_id' => $story->user_id,
-            ]
+            ],
         ]);
     }
 }

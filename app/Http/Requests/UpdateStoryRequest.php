@@ -2,9 +2,4 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class UpdateStoryRequest extends StoreStoryRequest
-{
-    
-}
+class UpdateStoryRequest extends StoreStoryRequest {}

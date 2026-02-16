@@ -17,12 +17,12 @@ class StoryResource extends JsonResource
         // return parent::toArray($request);
 
         return [
-            'id'         => $this->id,
-            'name'       => $this->name,
-            'slug'       => $this->slug,
-            'body'       => $this->body,
-            'prompt'     => $this->prompt,
-            'user_id'    => $this->user_id,
+            'id' => $this->id,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'body' => $this->body,
+            'prompt' => $this->prompt,
+            'user_id' => $this->user_id,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];
