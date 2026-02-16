@@ -25,7 +25,7 @@ class AuthTest extends TestCase
 
     public function test_user_cannot_login_with_incorrect_credentials(): void
     {
-        $suer = User::factory()->create();
+        $user = User::factory()->create();
 
         $response = $this->postJson('/api/auth/login', [
             'email' => $user->email,
