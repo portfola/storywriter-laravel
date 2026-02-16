@@ -57,7 +57,7 @@ class MonitorElevenLabsCost extends Command
         $violations = $this->checkThresholds($period, $totalCost);
 
         if (! empty($violations)) {
-            $this->warn('⚠️  Cost threshold violations detected!');
+            $this->warn('⚠️  WARNING: Cost threshold violations detected!');
             foreach ($violations as $violation) {
                 $this->warn("  • {$violation}");
             }
@@ -73,7 +73,9 @@ class MonitorElevenLabsCost extends Command
                 'violations' => $violations,
             ]);
 
-            return self::FAILURE;
+            // Return failure when notify flag is set (for automated monitoring)
+            // Return success otherwise (for manual monitoring/reporting)
+            return $shouldNotify ? self::FAILURE : self::SUCCESS;
         }
 
         $this->info('✓ All costs within acceptable thresholds');
