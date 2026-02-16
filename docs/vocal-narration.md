@@ -190,10 +190,11 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Logging Improvements
 
-- [ ] Add structured logging for TTS requests
+- [x] Add structured logging for TTS requests - Completed 2026-02-15
   - User ID, text length, voice ID, model ID
   - Response time, success/failure
   - Use Laravel's logging channels
+  - Logs request initiation, successful completion with metrics, and failures with error details
 
 - [ ] Log rate limit events
   - When user hits daily limit

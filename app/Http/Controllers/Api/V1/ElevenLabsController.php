@@ -142,6 +142,8 @@ class ElevenLabsController extends Controller
      */
     public function textToSpeech(Request $request)
     {
+        $startTime = microtime(true);
+
         $request->validate([
             'text' => 'required|string|max:5000',
             'voiceId' => 'required|string',
@@ -156,6 +158,16 @@ class ElevenLabsController extends Controller
         // Check daily usage limit
         $userId = auth()->id();
         $textLength = strlen($request->text);
+        $modelId = $request->options['model_id'] ?? config('services.elevenlabs.default_model');
+
+        // Log TTS request initiation
+        Log::info('ElevenLabs TTS request started', [
+            'user_id' => $userId,
+            'text_length' => $textLength,
+            'voice_id' => $request->voiceId,
+            'model_id' => $modelId,
+            'has_voice_settings' => isset($request->options['voice_settings']),
+        ]);
 
         if (ElevenLabsUsage::wouldExceedLimit($userId, $textLength)) {
             $currentUsage = ElevenLabsUsage::getTodayUsage($userId);
@@ -178,8 +190,6 @@ class ElevenLabsController extends Controller
             ], 429);
         }
 
-        $modelId = $request->options['model_id'] ?? config('services.elevenlabs.default_model');
-
         $response = Http::withHeaders([
             'xi-api-key' => $apiKey,
             'Accept' => 'audio/mpeg',
@@ -189,7 +199,19 @@ class ElevenLabsController extends Controller
             'voice_settings' => $request->options['voice_settings'] ?? [],
         ]);
 
+        $responseTime = round((microtime(true) - $startTime) * 1000, 2); // milliseconds
+
         if (! $response->successful()) {
+            Log::error('ElevenLabs TTS request failed', [
+                'user_id' => $userId,
+                'text_length' => $textLength,
+                'voice_id' => $request->voiceId,
+                'model_id' => $modelId,
+                'status_code' => $response->status(),
+                'response_time_ms' => $responseTime,
+                'error_details' => $response->json(),
+            ]);
+
             return response()->json([
                 'error' => 'TTS request failed',
                 'details' => $response->json(),
@@ -202,6 +224,18 @@ class ElevenLabsController extends Controller
             voiceId: $request->voiceId,
             modelId: $modelId
         );
+
+        $audioSize = strlen($response->body());
+
+        Log::info('ElevenLabs TTS request successful', [
+            'user_id' => $userId,
+            'text_length' => $textLength,
+            'voice_id' => $request->voiceId,
+            'model_id' => $modelId,
+            'response_time_ms' => $responseTime,
+            'audio_size_bytes' => $audioSize,
+            'success' => true,
+        ]);
 
         return response($response->body(), 200)
             ->header('Content-Type', 'audio/mpeg');
