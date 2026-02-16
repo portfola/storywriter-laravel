@@ -213,10 +213,21 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Unit Tests
 
-- [ ] Test usage tracking model
-  - `ElevenLabsUsage::logTtsRequest()`
-  - Cost calculation accuracy
-  - Relationship to User model
+- [x] Test usage tracking model - Completed 2026-02-15
+  - `ElevenLabsUsage::logTtsRequest()` - ✅ Tests cost calculation for all models (flash, multilingual, turbo)
+  - Cost calculation accuracy - ✅ Tests accurate cost per character for each model
+  - Relationship to User model - ✅ Tests belongsTo and hasMany relationships
+  - Created comprehensive test suite: `tests/Unit/ElevenLabsUsageTest.php`
+  - 23 tests covering all model methods and edge cases
+  - Includes tests for:
+    - `logTtsRequest()` - all models and cost calculations
+    - `logConversationRequest()` - conversation tracking
+    - `getTodayUsage()` - daily usage tracking with date isolation
+    - `getDailyLimit()` - limit retrieval
+    - `wouldExceedLimit()` - limit validation logic
+    - `getTotalRequests()`, `getTotalCharacters()`, `getTotalCost()` - analytics methods
+    - `getTopUsers()`, `getCostByModel()` - aggregation methods
+    - Type casting for character_count (integer) and estimated_cost (decimal)
 
 - [ ] Test daily limit logic
   - User within limit (should succeed)
