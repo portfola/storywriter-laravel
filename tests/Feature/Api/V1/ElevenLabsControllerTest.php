@@ -995,4 +995,61 @@ class ElevenLabsControllerTest extends TestCase
                        $context['requested_chars'] === 100;
             }));
     }
+
+    /** @test */
+    public function it_handles_invalid_api_key()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/text-to-speech/*' => Http::response([
+                'detail' => [
+                    'message' => 'Invalid API key',
+                ],
+            ], 401),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => 'Test with invalid API key',
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'error' => 'TTS request failed',
+            ]);
+
+        // Verify no usage was logged since authentication failed
+        $this->assertDatabaseMissing('elevenlabs_usage', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    /** @test */
+    public function it_handles_network_timeout()
+    {
+        $user = User::factory()->create();
+
+        // Simulate a connection timeout
+        Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Connection timeout');
+        });
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/tts', [
+                'text' => 'Test with network timeout',
+                'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
+            ]);
+
+        $response->assertStatus(500)
+            ->assertJson([
+                'error' => 'TTS request failed due to connection error',
+            ]);
+
+        // Verify no usage was logged since request failed
+        $this->assertDatabaseMissing('elevenlabs_usage', [
+            'user_id' => $user->id,
+        ]);
+    }
 }

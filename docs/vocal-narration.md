@@ -235,20 +235,20 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Integration Tests
 
-- [ ] Update existing `ElevenLabsControllerTest`
+- [x] Update existing `ElevenLabsControllerTest` - Completed 2026-02-15
   - Add test for default model (`eleven_flash_v2_5`)
   - Test usage tracking after successful request
   - Test daily limit enforcement
 
-- [ ] Test error scenarios
-  - Invalid API key
-  - Rate limit from ElevenLabs (429)
-  - Network timeout
-  - Invalid voice ID
+- [x] Test error scenarios - Completed 2026-02-15
+  - Invalid API key ✅
+  - Rate limit from ElevenLabs (429) ✅
+  - Network timeout ✅
+  - Invalid voice ID ✅
 
-- [ ] Test authentication
-  - Unauthenticated request returns 401
-  - Valid token returns audio
+- [x] Test authentication - Completed 2026-02-15
+  - Unauthenticated request returns 401 ✅
+  - Valid token returns audio ✅
 
 
 ### Phase 6: Documentation 📝

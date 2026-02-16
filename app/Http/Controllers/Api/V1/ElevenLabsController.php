@@ -208,14 +208,34 @@ class ElevenLabsController extends Controller
             ], 429);
         }
 
-        $response = Http::withHeaders([
-            'xi-api-key' => $apiKey,
-            'Accept' => 'audio/mpeg',
-        ])->post("https://api.elevenlabs.io/v1/text-to-speech/{$request->voiceId}", [
-            'text' => $request->text,
-            'model_id' => $modelId,
-            'voice_settings' => $request->options['voice_settings'] ?? [],
-        ]);
+        try {
+            $response = Http::withHeaders([
+                'xi-api-key' => $apiKey,
+                'Accept' => 'audio/mpeg',
+            ])->post("https://api.elevenlabs.io/v1/text-to-speech/{$request->voiceId}", [
+                'text' => $request->text,
+                'model_id' => $modelId,
+                'voice_settings' => $request->options['voice_settings'] ?? [],
+            ]);
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            $responseTime = round((microtime(true) - $startTime) * 1000, 2);
+
+            Log::error('ElevenLabs TTS connection error', [
+                'user_id' => $userId,
+                'text_length' => $textLength,
+                'voice_id' => $request->voiceId,
+                'model_id' => $modelId,
+                'response_time_ms' => $responseTime,
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'TTS request failed due to connection error',
+                'details' => [
+                    'message' => 'Unable to connect to ElevenLabs service',
+                ],
+            ], 500);
+        }
 
         $responseTime = round((microtime(true) - $startTime) * 1000, 2); // milliseconds
 
