@@ -64,12 +64,12 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
 
 #### Database Schema
 
-- [ ] Create migration for usage tracking table
+- [x] Create migration for usage tracking table - Completed 2026-02-15
   ```bash
   php artisan make:migration create_elevenlabs_usage_table
   ```
 
-- [ ] Define table schema with fields:
+- [x] Define table schema with fields - Completed 2026-02-15
   - `id` - Primary key
   - `user_id` - Foreign key to users table
   - `service_type` - 'tts' or 'conversation'
@@ -80,7 +80,7 @@ Enable users to listen to AI-generated audio narration of story pages using Elev
   - `created_at`, `updated_at` - Timestamps
   - Add indexes on `user_id` and `created_at`
 
-- [ ] Run migration
+- [x] Run migration - Completed 2026-02-15
   ```bash
   php artisan migrate
   ```
