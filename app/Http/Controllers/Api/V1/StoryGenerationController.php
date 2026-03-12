@@ -84,7 +84,7 @@ class StoryGenerationController extends Controller
                 ],
                 [
                     'role' => 'user',
-                    'content' => $validated['transcript'],
+                    'content' => $prompt['user'],
                 ],
             ],
             'max_tokens' => $maxTokens,
