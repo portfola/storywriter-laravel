@@ -64,7 +64,7 @@ class StoryGenerationController extends Controller
         $temperature = $options['temperature'] ?? 0.7;
 
         \Log::info('About to call Together AI', [
-            'model' => 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+            'model' => config('services.together.text_model'),
             'max_tokens' => $maxTokens,
             'temperature' => $temperature,
         ]);
@@ -76,7 +76,7 @@ class StoryGenerationController extends Controller
             'Authorization' => 'Bearer '.$apiKey,
             'Content-Type' => 'application/json',
         ])->post('https://api.together.xyz/v1/chat/completions', [
-            'model' => 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+            'model' => config('services.together.text_model'),
             'messages' => [
                 [
                     'role' => 'system',
@@ -132,11 +132,11 @@ class StoryGenerationController extends Controller
                 'Authorization' => 'Bearer '.$apiKey,
                 'Content-Type' => 'application/json',
             ])->post('https://api.together.xyz/v1/images/generations', [
-                'model' => 'black-forest-labs/FLUX.1-schnell',
+                'model' => config('services.together.image_model'),
                 'prompt' => $imagePrompt,
-                'width' => 1024,
-                'height' => 768,
-                'steps' => 4, // Low steps = Fast (Schnell model is designed for this)
+                'width' => config('services.together.image_width'),
+                'height' => config('services.together.image_height'),
+                'steps' => config('services.together.image_steps'),
                 'n' => 1,
             ]);
 
