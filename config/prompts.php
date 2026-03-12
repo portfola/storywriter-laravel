@@ -59,7 +59,11 @@ She trotted along the mossy path until she heard a soft hooting sound above. "He
 - Separate pages with "---PAGE BREAK---".
 - Write exactly 4 to 6 pages.',
 
-        // Future variables you can add
+        'image_style_prefix' => env(
+            'STORY_IMAGE_STYLE_PREFIX',
+            "Children's picture book illustration, digital watercolor style, soft warm colors, gentle lighting, friendly and whimsical, detailed background, "
+        ),
+
         'defaults' => [
             'min_pages' => 4,
             'max_pages' => 6,
