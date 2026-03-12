@@ -47,10 +47,17 @@ She trotted along the mossy path until she heard a soft hooting sound above. "He
 
 *(Continue this exact pattern for all remaining pages)*',
 
-        'user_template' => '**[Conversation]:**
+        'user_template' => 'Below is a transcript of a conversation with a young child. It captures their imagination — the characters they dreamed up, the adventures they described, and the feelings they shared. Your job is to transform this raw spark of creativity into a polished, beautifully written picture book story.
+
+**Conversation Transcript:**
 {conversation}
 
-Conversation:',
+**Reminders:**
+- Begin with "Title: " followed by the story title.
+- Include a [CHARACTERS] block with physical appearance descriptions for every character, right after the title.
+- End each page with an [ILLUSTRATION: ...] directive describing the scene for that page\'s illustration.
+- Separate pages with "---PAGE BREAK---".
+- Write exactly 4 to 6 pages.',
 
         // Future variables you can add
         'defaults' => [
