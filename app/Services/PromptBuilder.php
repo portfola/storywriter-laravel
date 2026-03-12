@@ -96,4 +96,23 @@ class PromptBuilder
             'pages' => $pages,
         ];
     }
+
+    /**
+     * Build a complete image generation prompt by combining the style prefix,
+     * character descriptions, and the page's illustration directive.
+     */
+    public function buildImagePrompt(string $characters, string $illustrationDirective): string
+    {
+        $stylePrefix = config('prompts.story_generator.image_style_prefix');
+
+        $parts = [$stylePrefix];
+
+        if ($characters !== '') {
+            $parts[] = $characters;
+        }
+
+        $parts[] = $illustrationDirective;
+
+        return implode(' ', $parts);
+    }
 }
