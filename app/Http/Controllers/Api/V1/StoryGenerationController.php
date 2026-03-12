@@ -154,7 +154,17 @@ class StoryGenerationController extends Controller
         // ---------------------------------------------------------
         // STEP 3: PARSE INTO STRUCTURED PAGES (before image injection)
         // ---------------------------------------------------------
-        $parsed = $this->parseStoryText($storyText, $imageUrl);
+        $parsed = $this->promptBuilder->parseStoryOutput($storyText);
+
+        // Map parsed pages to include pageNumber and imageUrl for response
+        $parsed['pages'] = array_map(function ($page, $index) use ($imageUrl) {
+            return [
+                'pageNumber' => $index + 1,
+                'content' => $page['content'],
+                'illustrationPrompt' => $page['illustrationPrompt'],
+                'imageUrl' => ($index === 0 && $imageUrl) ? $imageUrl : null,
+            ];
+        }, $parsed['pages'], array_keys($parsed['pages']));
 
         // ---------------------------------------------------------
         // STEP 4: SAVE TO DATABASE
@@ -201,66 +211,4 @@ class StoryGenerationController extends Controller
         ]);
     }
 
-    /**
-     * Parse raw LLM story text into structured pages.
-     *
-     * The LLM returns text with "Page N" headers separated by "---PAGE BREAK---".
-     * This method extracts the title, splits into pages, and attaches the cover
-     * image to the first page.
-     */
-    private function parseStoryText(string $text, ?string $coverImageUrl): array
-    {
-        // Extract title from the first line
-        $firstLine = strtok($text, "\n");
-        $title = trim(str_replace(['Title:', '"', '#', '*'], '', $firstLine)) ?: 'New Story';
-
-        // Remove any markdown image tags from the body before splitting
-        $body = preg_replace('/!\[.*?\]\(\s*https?:\/\/[^)]+\s*\)/i', '', $text);
-
-        // Remove the title line
-        $body = preg_replace('/^.*\n/', '', $body, 1);
-        $body = trim($body);
-
-        // Split on ---PAGE BREAK--- separator
-        $rawChunks = preg_split('/---PAGE BREAK---/i', $body);
-
-        $pages = [];
-        foreach ($rawChunks as $chunk) {
-            $chunk = trim($chunk);
-            if (strlen($chunk) < 20) {
-                continue;
-            }
-
-            // Remove "Page N" headers and illustration prompts
-            $clean = preg_replace('/^Page\s*\d+[:.]?\s*/im', '', $chunk);
-            $clean = preg_replace('/Illustration[:.]?.+/i', '', $clean);
-            $clean = trim($clean);
-
-            if (! $clean) {
-                continue;
-            }
-
-            $pageNum = count($pages) + 1;
-
-            $pages[] = [
-                'pageNumber' => $pageNum,
-                'content' => $clean,
-                'imageUrl' => ($pageNum === 1 && $coverImageUrl) ? $coverImageUrl : null,
-            ];
-        }
-
-        // Fallback: if parsing produced no pages, use the whole body as one page
-        if (empty($pages)) {
-            $pages[] = [
-                'pageNumber' => 1,
-                'content' => $body,
-                'imageUrl' => $coverImageUrl,
-            ];
-        }
-
-        return [
-            'title' => $title,
-            'pages' => $pages,
-        ];
-    }
 }
