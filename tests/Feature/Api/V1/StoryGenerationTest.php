@@ -123,8 +123,8 @@ STORY;
 
         // Pages 2-4 have illustrationPrompt but null imageUrl
         for ($i = 1; $i < 4; $i++) {
-            $this->assertNull($data['pages'][$i]['imageUrl'], "Page ".($i + 1)." should have null imageUrl");
-            $this->assertNotEmpty($data['pages'][$i]['illustrationPrompt'], "Page ".($i + 1)." should have illustrationPrompt");
+            $this->assertNull($data['pages'][$i]['imageUrl'], 'Page '.($i + 1).' should have null imageUrl');
+            $this->assertNotEmpty($data['pages'][$i]['illustrationPrompt'], 'Page '.($i + 1).' should have illustrationPrompt');
         }
 
         // Verify story_pages records in database
@@ -139,7 +139,7 @@ STORY;
         // Only page 1 has image_url in database
         $this->assertEquals('https://example.com/page1-image.jpg', $storyPages[0]->image_url);
         for ($i = 1; $i < 4; $i++) {
-            $this->assertNull($storyPages[$i]->image_url, "StoryPage ".($i + 1)." should have null image_url in DB");
+            $this->assertNull($storyPages[$i]->image_url, 'StoryPage '.($i + 1).' should have null image_url in DB');
         }
 
         // All pages have illustration_prompt in database

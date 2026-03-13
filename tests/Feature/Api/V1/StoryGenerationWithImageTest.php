@@ -17,7 +17,7 @@ class StoryGenerationWithImageTest extends TestCase
      * Build a mock LLM response with the structured format including
      * [CHARACTERS], [ILLUSTRATION] directives, and ---PAGE BREAK--- separators.
      */
-    private function mockStoryOutput(string $title = "The Dragon's Library", string $body = null): string
+    private function mockStoryOutput(string $title = "The Dragon's Library", ?string $body = null): string
     {
         if ($body !== null) {
             return $body;

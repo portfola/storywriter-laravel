@@ -225,5 +225,4 @@ class StoryGenerationController extends Controller
             ],
         ]);
     }
-
 }
