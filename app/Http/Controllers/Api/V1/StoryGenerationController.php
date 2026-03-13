@@ -120,12 +120,19 @@ class StoryGenerationController extends Controller
             'length' => strlen($storyText),
         ]);
         // ---------------------------------------------------------
-        // STEP 2: GENERATE COVER IMAGE (Using Flux.1 - Best quality)
+        // STEP 2: PARSE INTO STRUCTURED PAGES
+        // ---------------------------------------------------------
+        $parsed = $this->promptBuilder->parseStoryOutput($storyText);
+
+        // ---------------------------------------------------------
+        // STEP 3: GENERATE PAGE 1 IMAGE (Using Flux.1 - Best quality)
         // ---------------------------------------------------------
         $imageUrl = null;
 
-        // Create a simple image prompt based on the user's input
-        $imagePrompt = "Children's book illustration, cover art, cute style: ".substr($validated['transcript'], 0, 200);
+        $imagePrompt = $this->promptBuilder->buildImagePrompt(
+            $parsed['characters'],
+            $parsed['pages'][0]['illustrationPrompt']
+        );
 
         try {
             $imageResponse = Http::withHeaders([
@@ -150,11 +157,6 @@ class StoryGenerationController extends Controller
             \Log::error('Image Generation Exception: '.$e->getMessage());
             // We don't stop the story if the image fails, we just continue without it.
         }
-
-        // ---------------------------------------------------------
-        // STEP 3: PARSE INTO STRUCTURED PAGES (before image injection)
-        // ---------------------------------------------------------
-        $parsed = $this->promptBuilder->parseStoryOutput($storyText);
 
         // Map parsed pages to include pageNumber and imageUrl for response
         $parsed['pages'] = array_map(function ($page, $index) use ($imageUrl) {
