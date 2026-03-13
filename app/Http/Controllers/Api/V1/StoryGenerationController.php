@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Story;
+use App\Models\StoryPage;
 use App\Services\PromptBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -173,7 +174,7 @@ class StoryGenerationController extends Controller
         // ---------------------------------------------------------
         $storyEntry = null;
         try {
-            // Inject the image at the top of the body for DB storage
+            // Inject the image at the top of the body for DB storage (backward compat)
             $bodyForDb = $imageUrl
                 ? "![]( $imageUrl )\n\n".$storyText
                 : $storyText;
@@ -184,7 +185,19 @@ class StoryGenerationController extends Controller
                 'slug' => Str::slug($parsed['title'] ?: 'story').'-'.Str::random(4),
                 'body' => $bodyForDb,
                 'prompt' => $validated['transcript'],
+                'characters_description' => $parsed['characters'],
             ]);
+
+            // Create StoryPage records for each page
+            foreach ($parsed['pages'] as $index => $page) {
+                StoryPage::create([
+                    'story_id' => $storyEntry->id,
+                    'page_number' => $page['pageNumber'],
+                    'content' => $page['content'],
+                    'illustration_prompt' => $page['illustrationPrompt'],
+                    'image_url' => ($index === 0 && $imageUrl) ? $imageUrl : null,
+                ]);
+            }
 
         } catch (\Throwable $e) {
             \Log::error('DB SAVE ERROR: '.$e->getMessage());
