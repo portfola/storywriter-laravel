@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\V1\ElevenLabsController;
 use App\Http\Controllers\Api\V1\StoryController;
+use App\Http\Controllers\Api\V1\PageImageController;
 use App\Http\Controllers\Api\V1\StoryGenerationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/heartbeat', [AuthController::class, 'heartbeat']);
 
     Route::post('/generate-story', [StoryController::class, 'generate'])->middleware('log.story');
+
+    Route::post('stories/{story}/pages/{pageNumber}/image', [PageImageController::class, 'generate']);
 });
 
 // Route::get('/user', function (Request $request) {
