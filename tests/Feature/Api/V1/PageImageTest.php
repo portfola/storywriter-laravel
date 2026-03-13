@@ -35,7 +35,7 @@ class PageImageTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson("/api/stories/{$story->slug}/pages/2/image");
+            ->postJson("/api/stories/{$story->id}/pages/2/image");
 
         $response->assertOk()
             ->assertJsonPath('data.imageUrl', 'https://example.com/generated-image.png');
@@ -59,7 +59,7 @@ class PageImageTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson("/api/stories/{$story->slug}/pages/1/image");
+            ->postJson("/api/stories/{$story->id}/pages/1/image");
 
         $response->assertOk()
             ->assertJsonPath('data.imageUrl', 'https://example.com/existing-image.png');
@@ -78,7 +78,7 @@ class PageImageTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson("/api/stories/{$story->slug}/pages/99/image");
+            ->postJson("/api/stories/{$story->id}/pages/99/image");
 
         $response->assertNotFound();
     }
@@ -107,7 +107,7 @@ class PageImageTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->postJson("/api/stories/{$story->slug}/pages/3/image")
+            ->postJson("/api/stories/{$story->id}/pages/3/image")
             ->assertOk();
 
         $this->assertDatabaseHas('story_pages', [
@@ -129,7 +129,7 @@ class PageImageTest extends TestCase
         ]);
 
         $response = $this->actingAs($otherUser)
-            ->postJson("/api/stories/{$story->slug}/pages/1/image");
+            ->postJson("/api/stories/{$story->id}/pages/1/image");
 
         $response->assertForbidden();
     }

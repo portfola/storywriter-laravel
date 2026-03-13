@@ -29,7 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/generate-story', [StoryController::class, 'generate'])->middleware('log.story');
 
-    Route::post('stories/{story}/pages/{pageNumber}/image', [PageImageController::class, 'generate']);
+    Route::post('stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate']);
 });
 
 // Route::get('/user', function (Request $request) {
