@@ -23,7 +23,7 @@ class StoryController extends Controller
      */
     public function show(Story $story)
     {
-        return StoryResource::make($story);
+        return StoryResource::make($story->load('pages'));
     }
 
     /**

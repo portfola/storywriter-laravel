@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Models\Story;
+use App\Models\StoryPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +12,38 @@ use Tests\TestCase;
 class StoryGenerationWithImageTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Build a mock LLM response with the structured format including
+     * [CHARACTERS], [ILLUSTRATION] directives, and ---PAGE BREAK--- separators.
+     */
+    private function mockStoryOutput(string $title = "The Dragon's Library", ?string $body = null): string
+    {
+        if ($body !== null) {
+            return $body;
+        }
+
+        return <<<STORY
+[CHARACTERS]
+Ember: A friendly green dragon with sparkling blue scales on his belly, large round amber eyes, and small purple wings.
+Mia: A brave girl with long black braids, a yellow raincoat, and purple sneakers.
+[/CHARACTERS]
+
+{$title}
+
+Page 1
+Once upon a time, in a magical library hidden beneath an old oak tree, Ember the dragon sat reading his favorite book. His friend Mia pushed open the heavy wooden door and called out, "Ember, I found a map!"
+
+[ILLUSTRATION: A friendly green dragon with blue belly scales sitting in a cozy underground library reading a book, while a girl with black braids in a yellow raincoat pushes open a wooden door, warm lamplight filling the room]
+
+---PAGE BREAK---
+
+Page 2
+The dragon loved to read, and together they followed the map through twisting tunnels filled with glowing mushrooms until they reached a hidden room full of golden books.
+
+[ILLUSTRATION: A green dragon and a girl with black braids walking through a tunnel lit by glowing mushrooms, following an old treasure map, magical blue and green light around them]
+STORY;
+    }
 
     /**
      * Test that the story title is extracted from the text content,
@@ -24,13 +57,12 @@ class StoryGenerationWithImageTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        // Mock both text AND image API calls
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
                 'choices' => [
                     [
                         'message' => [
-                            'content' => "The Dragon's Library\n\nPage 1\nOnce upon a time, in a magical library...\n\n---PAGE BREAK---\n\nPage 2\nThe dragon loved to read...",
+                            'content' => $this->mockStoryOutput(),
                         ],
                     ],
                 ],
@@ -55,6 +87,11 @@ class StoryGenerationWithImageTest extends TestCase
         $this->assertStringNotContainsString('api.together.ai', $story->name);
         $this->assertStringNotContainsString('http', $story->name);
 
+        // Characters description should be saved
+        $this->assertNotEmpty($story->characters_description);
+        $this->assertStringContainsString('Ember', $story->characters_description);
+        $this->assertStringContainsString('Mia', $story->characters_description);
+
         // Body SHOULD contain the image markdown at the top
         $this->assertStringStartsWith('![](', $story->body);
         $this->assertStringContainsString('https://api.together.ai/test-image-12345.jpg', $story->body);
@@ -62,6 +99,12 @@ class StoryGenerationWithImageTest extends TestCase
         // Body should also contain the actual story text
         $this->assertStringContainsString("The Dragon's Library", $story->body);
         $this->assertStringContainsString('Once upon a time', $story->body);
+
+        // Structured pages should exist
+        $pages = StoryPage::where('story_id', $story->id)->orderBy('page_number')->get();
+        $this->assertCount(2, $pages);
+        $this->assertEquals('https://api.together.ai/test-image-12345.jpg', $pages[0]->image_url);
+        $this->assertNull($pages[1]->image_url);
     }
 
     /**
@@ -72,13 +115,12 @@ class StoryGenerationWithImageTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        // Mock successful text generation but failed image generation
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
                 'choices' => [
                     [
                         'message' => [
-                            'content' => "The Brave Little Robot\n\nA story about courage...",
+                            'content' => $this->mockStoryOutput('The Brave Little Robot'),
                         ],
                     ],
                 ],
@@ -99,9 +141,17 @@ class StoryGenerationWithImageTest extends TestCase
         // Title should still be extracted correctly
         $this->assertEquals('The Brave Little Robot', $story->name);
 
+        // Characters description should still be saved even when image fails
+        $this->assertNotEmpty($story->characters_description);
+
         // Body should NOT contain image markdown
         $this->assertStringNotContainsString('![](', $story->body);
-        $this->assertStringStartsWith('The Brave Little Robot', $story->body);
+
+        // Structured pages should exist but with no images
+        $pages = StoryPage::where('story_id', $story->id)->orderBy('page_number')->get();
+        $this->assertCount(2, $pages);
+        $this->assertNull($pages[0]->image_url);
+        $this->assertNull($pages[1]->image_url);
     }
 
     /**
@@ -117,7 +167,7 @@ class StoryGenerationWithImageTest extends TestCase
                 'choices' => [
                     [
                         'message' => [
-                            'content' => "Title: The Magical Garden\n\nOnce upon a time...",
+                            'content' => $this->mockStoryOutput('Title: The Magical Garden'),
                         ],
                     ],
                 ],
@@ -140,6 +190,9 @@ class StoryGenerationWithImageTest extends TestCase
         // "Title:" prefix should be removed
         $this->assertEquals('The Magical Garden', $story->name);
         $this->assertStringNotContainsString('Title:', $story->name);
+
+        // Characters description should be saved
+        $this->assertNotEmpty($story->characters_description);
     }
 
     /**
@@ -155,7 +208,7 @@ class StoryGenerationWithImageTest extends TestCase
                 'choices' => [
                     [
                         'message' => [
-                            'content' => "# \"The Star's Journey\" *\n\nA tale of adventure...",
+                            'content' => $this->mockStoryOutput('# "The Star\'s Journey" *'),
                         ],
                     ],
                 ],
@@ -217,5 +270,46 @@ class StoryGenerationWithImageTest extends TestCase
 
         // Should use fallback title
         $this->assertEquals('New Story', $story->name);
+    }
+
+    /**
+     * Test that characters_description is saved on the Story model.
+     */
+    public function test_it_saves_characters_description_on_story(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        Http::fake([
+            'api.together.xyz/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => $this->mockStoryOutput(),
+                        ],
+                    ],
+                ],
+            ], 200),
+            'api.together.xyz/v1/images/generations' => Http::response([
+                'data' => [
+                    ['url' => 'https://example.com/image.jpg'],
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->postJson('/api/stories/generate', [
+            'transcript' => 'A story about a dragon and a girl',
+        ]);
+
+        $response->assertStatus(200);
+
+        $story = Story::latest()->first();
+
+        // Characters description should contain both character descriptions
+        $this->assertNotNull($story->characters_description);
+        $this->assertStringContainsString('Ember', $story->characters_description);
+        $this->assertStringContainsString('green dragon', $story->characters_description);
+        $this->assertStringContainsString('Mia', $story->characters_description);
+        $this->assertStringContainsString('black braids', $story->characters_description);
     }
 }
