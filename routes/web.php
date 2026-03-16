@@ -16,18 +16,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard/stories/{story}', [DashboardController::class, 'show'])->name('dashboard.stories.show');
 });
 
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
-
-Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard.analytics');
-
-// Route::get('/dashboard/stories/{story}', [DashboardController::class, 'show'])
-//     ->middleware(['auth', 'verified'])
-//     ->name('dashboard.stories.show');
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

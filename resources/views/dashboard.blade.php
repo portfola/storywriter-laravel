@@ -46,7 +46,7 @@
         </div>
     </div>
      {{-- Recent Stories --}}
-    <div class="bg-white rounded-lg shadow">
+    <div class="bg-white rounded-lg shadow mb-8">
         <div class="p-6 border-b">
             <h2 class="text-xl font-bold">Recent Stories</h2>
         </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Story;
+use App\Models\StoryPage;
 use App\Services\PromptBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -64,7 +65,7 @@ class StoryGenerationController extends Controller
         $temperature = $options['temperature'] ?? 0.7;
 
         \Log::info('About to call Together AI', [
-            'model' => 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+            'model' => config('services.together.text_model'),
             'max_tokens' => $maxTokens,
             'temperature' => $temperature,
         ]);
@@ -76,7 +77,7 @@ class StoryGenerationController extends Controller
             'Authorization' => 'Bearer '.$apiKey,
             'Content-Type' => 'application/json',
         ])->post('https://api.together.xyz/v1/chat/completions', [
-            'model' => 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo',
+            'model' => config('services.together.text_model'),
             'messages' => [
                 [
                     'role' => 'system',
@@ -84,7 +85,7 @@ class StoryGenerationController extends Controller
                 ],
                 [
                     'role' => 'user',
-                    'content' => $validated['transcript'],
+                    'content' => $prompt['user'],
                 ],
             ],
             'max_tokens' => $maxTokens,
@@ -120,23 +121,30 @@ class StoryGenerationController extends Controller
             'length' => strlen($storyText),
         ]);
         // ---------------------------------------------------------
-        // STEP 2: GENERATE COVER IMAGE (Using Flux.1 - Best quality)
+        // STEP 2: PARSE INTO STRUCTURED PAGES
+        // ---------------------------------------------------------
+        $parsed = $this->promptBuilder->parseStoryOutput($storyText);
+
+        // ---------------------------------------------------------
+        // STEP 3: GENERATE PAGE 1 IMAGE (Using Flux.1 - Best quality)
         // ---------------------------------------------------------
         $imageUrl = null;
 
-        // Create a simple image prompt based on the user's input
-        $imagePrompt = "Children's book illustration, cover art, cute style: ".substr($validated['transcript'], 0, 200);
+        $imagePrompt = $this->promptBuilder->buildImagePrompt(
+            $parsed['characters'],
+            $parsed['pages'][0]['illustrationPrompt']
+        );
 
         try {
             $imageResponse = Http::withHeaders([
                 'Authorization' => 'Bearer '.$apiKey,
                 'Content-Type' => 'application/json',
             ])->post('https://api.together.xyz/v1/images/generations', [
-                'model' => 'black-forest-labs/FLUX.1-schnell',
+                'model' => config('services.together.image_model'),
                 'prompt' => $imagePrompt,
-                'width' => 1024,
-                'height' => 768,
-                'steps' => 4, // Low steps = Fast (Schnell model is designed for this)
+                'width' => config('services.together.image_width'),
+                'height' => config('services.together.image_height'),
+                'steps' => config('services.together.image_steps'),
                 'n' => 1,
             ]);
 
@@ -151,17 +159,22 @@ class StoryGenerationController extends Controller
             // We don't stop the story if the image fails, we just continue without it.
         }
 
-        // ---------------------------------------------------------
-        // STEP 3: PARSE INTO STRUCTURED PAGES (before image injection)
-        // ---------------------------------------------------------
-        $parsed = $this->parseStoryText($storyText, $imageUrl);
+        // Map parsed pages to include pageNumber and imageUrl for response
+        $parsed['pages'] = array_map(function ($page, $index) use ($imageUrl) {
+            return [
+                'pageNumber' => $index + 1,
+                'content' => $page['content'],
+                'illustrationPrompt' => $page['illustrationPrompt'],
+                'imageUrl' => ($index === 0 && $imageUrl) ? $imageUrl : null,
+            ];
+        }, $parsed['pages'], array_keys($parsed['pages']));
 
         // ---------------------------------------------------------
         // STEP 4: SAVE TO DATABASE
         // ---------------------------------------------------------
         $storyEntry = null;
         try {
-            // Inject the image at the top of the body for DB storage
+            // Inject the image at the top of the body for DB storage (backward compat)
             $bodyForDb = $imageUrl
                 ? "![]( $imageUrl )\n\n".$storyText
                 : $storyText;
@@ -172,7 +185,19 @@ class StoryGenerationController extends Controller
                 'slug' => Str::slug($parsed['title'] ?: 'story').'-'.Str::random(4),
                 'body' => $bodyForDb,
                 'prompt' => $validated['transcript'],
+                'characters_description' => $parsed['characters'],
             ]);
+
+            // Create StoryPage records for each page
+            foreach ($parsed['pages'] as $index => $page) {
+                StoryPage::create([
+                    'story_id' => $storyEntry->id,
+                    'page_number' => $page['pageNumber'],
+                    'content' => $page['content'],
+                    'illustration_prompt' => $page['illustrationPrompt'],
+                    'image_url' => ($index === 0 && $imageUrl) ? $imageUrl : null,
+                ]);
+            }
 
         } catch (\Throwable $e) {
             \Log::error('DB SAVE ERROR: '.$e->getMessage());
@@ -199,68 +224,5 @@ class StoryGenerationController extends Controller
                 'page_count' => count($parsed['pages']),
             ],
         ]);
-    }
-
-    /**
-     * Parse raw LLM story text into structured pages.
-     *
-     * The LLM returns text with "Page N" headers separated by "---PAGE BREAK---".
-     * This method extracts the title, splits into pages, and attaches the cover
-     * image to the first page.
-     */
-    private function parseStoryText(string $text, ?string $coverImageUrl): array
-    {
-        // Extract title from the first line
-        $firstLine = strtok($text, "\n");
-        $title = trim(str_replace(['Title:', '"', '#', '*'], '', $firstLine)) ?: 'New Story';
-
-        // Remove any markdown image tags from the body before splitting
-        $body = preg_replace('/!\[.*?\]\(\s*https?:\/\/[^)]+\s*\)/i', '', $text);
-
-        // Remove the title line
-        $body = preg_replace('/^.*\n/', '', $body, 1);
-        $body = trim($body);
-
-        // Split on ---PAGE BREAK--- separator
-        $rawChunks = preg_split('/---PAGE BREAK---/i', $body);
-
-        $pages = [];
-        foreach ($rawChunks as $chunk) {
-            $chunk = trim($chunk);
-            if (strlen($chunk) < 20) {
-                continue;
-            }
-
-            // Remove "Page N" headers and illustration prompts
-            $clean = preg_replace('/^Page\s*\d+[:.]?\s*/im', '', $chunk);
-            $clean = preg_replace('/Illustration[:.]?.+/i', '', $clean);
-            $clean = trim($clean);
-
-            if (! $clean) {
-                continue;
-            }
-
-            $pageNum = count($pages) + 1;
-
-            $pages[] = [
-                'pageNumber' => $pageNum,
-                'content' => $clean,
-                'imageUrl' => ($pageNum === 1 && $coverImageUrl) ? $coverImageUrl : null,
-            ];
-        }
-
-        // Fallback: if parsing produced no pages, use the whole body as one page
-        if (empty($pages)) {
-            $pages[] = [
-                'pageNumber' => 1,
-                'content' => $body,
-                'imageUrl' => $coverImageUrl,
-            ];
-        }
-
-        return [
-            'title' => $title,
-            'pages' => $pages,
-        ];
     }
 }

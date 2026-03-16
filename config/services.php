@@ -69,6 +69,11 @@ return [
 
     'together' => [
         'api_key' => env('TOGETHER_API_KEY'),
+        'text_model' => env('TOGETHER_TEXT_MODEL', 'meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo'),
+        'image_model' => env('TOGETHER_IMAGE_MODEL', 'black-forest-labs/FLUX.1-schnell'),
+        'image_width' => (int) env('TOGETHER_IMAGE_WIDTH', 1024),
+        'image_height' => (int) env('TOGETHER_IMAGE_HEIGHT', 768),
+        'image_steps' => (int) env('TOGETHER_IMAGE_STEPS', 4),
     ],
 
     /*
