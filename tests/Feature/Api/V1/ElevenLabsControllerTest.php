@@ -996,6 +996,108 @@ class ElevenLabsControllerTest extends TestCase
             }));
     }
 
+    // ==========================================
+    // SDK Credentials Endpoint Tests
+    // ==========================================
+
+    /** @test */
+    public function it_requires_authentication_for_sdk_credentials()
+    {
+        $response = $this->postJson('/api/conversation/sdk-credentials', [
+            'agentId' => 'test-agent-id',
+        ]);
+
+        $response->assertStatus(401);
+    }
+
+    /** @test */
+    public function it_rejects_get_requests_to_sdk_credentials()
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/conversation/sdk-credentials?agentId=test-agent-id');
+
+        $response->assertStatus(405);
+    }
+
+    /** @test */
+    public function it_requires_agent_id_for_sdk_credentials()
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/sdk-credentials', []);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['agentId']);
+    }
+
+    /** @test */
+    public function it_returns_signed_url_for_valid_request()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/convai/conversation/get_signed_url*' => Http::response([
+                'signed_url' => 'wss://api.elevenlabs.io/v1/convai/conversation?agent_id=test-agent-id&signature=abc123',
+            ], 200),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/sdk-credentials', [
+                'agentId' => 'test-agent-id',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['signed_url']);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'api.elevenlabs.io/v1/convai/conversation/get_signed_url') &&
+                   $request['agent_id'] === 'test-agent-id';
+        });
+    }
+
+    /** @test */
+    public function it_handles_elevenlabs_failure_for_sdk_credentials()
+    {
+        $user = User::factory()->create();
+
+        Http::fake([
+            'api.elevenlabs.io/v1/convai/conversation/get_signed_url*' => Http::response([
+                'detail' => ['message' => 'Invalid agent ID'],
+            ], 404),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/sdk-credentials', [
+                'agentId' => 'invalid-agent-id',
+            ]);
+
+        $response->assertStatus(404)
+            ->assertJson([
+                'error' => 'Failed to get signed URL from ElevenLabs',
+            ]);
+    }
+
+    /** @test */
+    public function it_returns_500_when_api_key_not_configured_for_sdk_credentials()
+    {
+        $user = User::factory()->create();
+
+        config(['services.elevenlabs.api_key' => null]);
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/conversation/sdk-credentials', [
+                'agentId' => 'test-agent-id',
+            ]);
+
+        $response->assertStatus(500)
+            ->assertJson([
+                'error' => 'ELEVENLABS_API_KEY is not configured',
+            ]);
+    }
+
     /** @test */
     public function it_handles_invalid_api_key()
     {
