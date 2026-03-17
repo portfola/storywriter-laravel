@@ -12,6 +12,7 @@ concurrency:
 
 env:
   APP_DIR: /var/www/storywriter-prod
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
