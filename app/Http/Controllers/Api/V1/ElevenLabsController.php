@@ -13,10 +13,15 @@ class ElevenLabsController extends Controller
 {
     /**
      * Get a signed URL for ElevenLabs Conversational AI.
+     *
+     * Returns a signed WebSocket URL from ElevenLabs that the frontend can use
+     * to connect directly without exposing the API key.
      */
     public function sdkCredentials(Request $request)
     {
-        \Log::info('🎯 sdkCredentials METHOD ENTERED');
+        $request->validate([
+            'agentId' => 'required|string',
+        ]);
 
         $apiKey = config('services.elevenlabs.api_key');
         if (! $apiKey) {
@@ -29,15 +34,12 @@ class ElevenLabsController extends Controller
             ], 500);
         }
 
-            $apiKey = config('services.elevenlabs.api_key');
-            if (!$apiKey) {
-                Log::error('ElevenLabs API key not configured', [
-                    'user_id' => $request->user()?->id,
-                ]);
-                return response()->json([
-                    'error' => 'ELEVENLABS_API_KEY is not configured'
-                ], 500);
-            }
+        // Get signed URL from ElevenLabs
+        $response = Http::withHeaders([
+            'xi-api-key' => $apiKey,
+        ])->get('https://api.elevenlabs.io/v1/convai/conversation/get_signed_url', [
+            'agent_id' => $request->agentId,
+        ]);
 
         if (! $response->successful()) {
             $logLevel = $response->status() === 429 ? 'warning' : 'error';
@@ -54,14 +56,22 @@ class ElevenLabsController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Exception calling ElevenLabs API',
-                'message' => $e->getMessage()
-            ], 500);
+                'error' => 'Failed to get signed URL from ElevenLabs',
+                'details' => $response->json(),
+            ], $response->status());
         }
+
+        Log::info('ElevenLabs signed URL generated', [
+            'user_id' => $request->user()?->id,
+            'agent_id' => $request->agentId,
+        ]);
+
+        return response()->json($response->json());
     }
 
     /**
      * Proxy endpoint for ElevenLabs Conversational AI.
+     * Use this instead of client-side SDK to keep API keys secure.
      */
     public function conversationProxy(Request $request)
     {
@@ -146,6 +156,7 @@ class ElevenLabsController extends Controller
 
     /**
      * ElevenLabs Text-to-Speech (server-side version).
+     * React Native can call this when the JS SDK is unavailable.
      */
     public function textToSpeech(Request $request)
     {
