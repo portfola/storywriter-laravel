@@ -39,7 +39,7 @@ terraform/
 
 1. AWS CLI configured with appropriate credentials
 2. Terraform >= 1.0 installed
-3. S3 bucket for state storage (`storywriter-terraform-state`)
+3. S3 bucket for state storage (`storywriter-terraform-state-548846592016`)
 4. SSH key pairs created in AWS:
    - Staging: `storywriter-staging-ec2-tf`
    - Production: `storywriter-prod-ec2-tf`
@@ -103,8 +103,8 @@ terraform apply
 ## State Management
 
 Each environment has its own state file stored in S3:
-- Staging: `s3://storywriter-terraform-state/backend-staging/terraform.tfstate`
-- Production: `s3://storywriter-terraform-state/environments/prod/terraform.tfstate`
+- Staging: `s3://storywriter-terraform-state-548846592016/backend-staging/terraform.tfstate`
+- Production: `s3://storywriter-terraform-state-548846592016/environments/prod/terraform.tfstate`
 
 ## Outputs
 

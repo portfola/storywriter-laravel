@@ -30,7 +30,7 @@ jobs:
           extensions: curl, mbstring, xml, zip, pgsql, bcmath, intl
           coverage: none
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: '24'
