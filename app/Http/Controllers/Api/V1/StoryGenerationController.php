@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Story;
 use App\Models\StoryPage;
 use App\Services\PromptBuilder;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -73,32 +74,64 @@ class StoryGenerationController extends Controller
         // ---------------------------------------------------------
         // STEP 1: GENERATE TEXT (Using Llama 3 - Reliable & Fast)
         // ---------------------------------------------------------
-        $textResponse = Http::withHeaders([
-            'Authorization' => 'Bearer '.$apiKey,
-            'Content-Type' => 'application/json',
-        ])->post('https://api.together.xyz/v1/chat/completions', [
-            'model' => config('services.together.text_model'),
-            'messages' => [
-                [
-                    'role' => 'system',
-                    'content' => $prompt['system'],
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $prompt['user'],
-                ],
-            ],
-            'max_tokens' => $maxTokens,
-            'temperature' => $temperature,
-        ]);
+        $textCallStart = microtime(true);
+
+        try {
+            $textResponse = Http::connectTimeout(10)
+                ->timeout(90)
+                ->withHeaders([
+                    'Authorization' => 'Bearer '.$apiKey,
+                    'Content-Type' => 'application/json',
+                ])->post('https://api.together.xyz/v1/chat/completions', [
+                    'model' => config('services.together.text_model'),
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => $prompt['system'],
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt['user'],
+                        ],
+                    ],
+                    'max_tokens' => $maxTokens,
+                    'temperature' => $temperature,
+                ]);
+        } catch (ConnectionException $e) {
+            $elapsedMs = round((microtime(true) - $textCallStart) * 1000);
+
+            \Log::error('Together AI timeout', [
+                'model' => config('services.together.text_model'),
+                'elapsed_ms' => $elapsedMs,
+                'message' => $e->getMessage(),
+            ]);
+
+            if (config('services.posthog.api_key')) {
+                PostHog::capture([
+                    'distinctId' => $userId,
+                    'event' => 'story_generation_failed',
+                    'properties' => [
+                        'error_type' => 'timeout',
+                        'elapsed_ms' => $elapsedMs,
+                    ],
+                ]);
+            }
+
+            return response()->json(['error' => 'Story text generation timed out'], 504);
+        }
 
         \Log::info('Together AI Response Received', [
             'status' => $textResponse->status(),
             'successful' => $textResponse->successful(),
+            'elapsed_ms' => round((microtime(true) - $textCallStart) * 1000),
         ]);
 
         if (! $textResponse->successful()) {
-            \Log::error('Text Generation Failed', ['body' => $textResponse->json()]);
+            \Log::error('Text Generation Failed', [
+                'error_type' => 'http_error',
+                'status' => $textResponse->status(),
+                'body' => $textResponse->json(),
+            ]);
 
             if (config('services.posthog.api_key')) {
                 PostHog::capture([
@@ -136,17 +169,19 @@ class StoryGenerationController extends Controller
         );
 
         try {
-            $imageResponse = Http::withHeaders([
-                'Authorization' => 'Bearer '.$apiKey,
-                'Content-Type' => 'application/json',
-            ])->post('https://api.together.xyz/v1/images/generations', [
-                'model' => config('services.together.image_model'),
-                'prompt' => $imagePrompt,
-                'width' => config('services.together.image_width'),
-                'height' => config('services.together.image_height'),
-                'steps' => config('services.together.image_steps'),
-                'n' => 1,
-            ]);
+            $imageResponse = Http::connectTimeout(10)
+                ->timeout(60)
+                ->withHeaders([
+                    'Authorization' => 'Bearer '.$apiKey,
+                    'Content-Type' => 'application/json',
+                ])->post('https://api.together.xyz/v1/images/generations', [
+                    'model' => config('services.together.image_model'),
+                    'prompt' => $imagePrompt,
+                    'width' => config('services.together.image_width'),
+                    'height' => config('services.together.image_height'),
+                    'steps' => config('services.together.image_steps'),
+                    'n' => 1,
+                ]);
 
             if ($imageResponse->successful()) {
                 $imageUrl = $imageResponse->json()['data'][0]['url'] ?? null;

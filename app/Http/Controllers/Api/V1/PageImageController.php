@@ -49,17 +49,19 @@ class PageImageController extends Controller
         );
 
         try {
-            $imageResponse = Http::withHeaders([
-                'Authorization' => 'Bearer '.$apiKey,
-                'Content-Type' => 'application/json',
-            ])->post('https://api.together.xyz/v1/images/generations', [
-                'model' => config('services.together.image_model'),
-                'prompt' => $imagePrompt,
-                'width' => config('services.together.image_width'),
-                'height' => config('services.together.image_height'),
-                'steps' => config('services.together.image_steps'),
-                'n' => 1,
-            ]);
+            $imageResponse = Http::connectTimeout(10)
+                ->timeout(60)
+                ->withHeaders([
+                    'Authorization' => 'Bearer '.$apiKey,
+                    'Content-Type' => 'application/json',
+                ])->post('https://api.together.xyz/v1/images/generations', [
+                    'model' => config('services.together.image_model'),
+                    'prompt' => $imagePrompt,
+                    'width' => config('services.together.image_width'),
+                    'height' => config('services.together.image_height'),
+                    'steps' => config('services.together.image_steps'),
+                    'n' => 1,
+                ]);
 
             if (! $imageResponse->successful()) {
                 \Log::error('Page image generation failed', ['body' => $imageResponse->json()]);
