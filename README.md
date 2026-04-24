@@ -136,6 +136,67 @@ AWS_SSM_CACHE_TTL=300  # seconds (default: 300)
 
 Set to `0` to disable caching (not recommended for production)
 
+## Authentication
+
+### API Authentication Methods
+
+The StoryWriter API supports two authentication methods:
+
+#### 1. Token-Based Authentication (Native Mobile)
+- Used by React Native/Expo mobile applications
+- Tokens are stored in Expo SecureStore
+- All requests include `Authorization: Bearer <token>` header
+
+#### 2. Session-Based Authentication (Web)
+- Used by web browsers (SPA)
+- Requires httpOnly cookies (secure, immune to XSS)
+- Configuration via `SANCTUM_STATEFUL_DOMAINS` environment variable
+- CSRF protection enabled with `GET /sanctum/csrf-cookie` endpoint
+
+### Web Authentication Setup
+
+For web applications using cookie-based authentication:
+
+1. **Frontend**:
+   - Call `GET /sanctum/csrf-cookie` to get CSRF token and set session cookies
+   - Set `withCredentials: true` in axios/fetch requests
+   - No Bearer token needed; cookies are sent automatically
+
+2. **Backend Environment Configuration**:
+   ```env
+   # List of domains allowed to use stateful (cookie-based) authentication
+   SANCTUM_STATEFUL_DOMAINS=localhost:3000,localhost:3001,example.com,www.example.com
+   
+   # Frontend URL for parsing stateful domains automatically
+   FRONTEND_URL=https://example.com
+   ```
+
+3. **CORS Headers**:
+   - Automatically configured in `bootstrap/app.php`
+   - `supports_credentials: true` enabled for all preflight requests
+   - `/sanctum/csrf-cookie` endpoint is CORS-enabled
+   - Custom security headers (CSP, X-Frame-Options, etc.) added via `SetSecurityHeaders` middleware
+
+### Deployment Configuration
+
+When deploying to production/staging:
+
+1. Add the frontend domain(s) to `SANCTUM_STATEFUL_DOMAINS`:
+   ```env
+   SANCTUM_STATEFUL_DOMAINS=api.storywriter.net,web.storywriter.net
+   ```
+
+2. Add the frontend URL for automatic stateful domain parsing:
+   ```env
+   FRONTEND_URL=https://web.storywriter.net
+   ```
+
+3. Verify CORS headers are being sent:
+   ```bash
+   curl -i -X OPTIONS https://api.storywriter.net/sanctum/csrf-cookie
+   ```
+   Should return `Access-Control-Allow-Credentials: true`
+
 ## Routes
 
 ### Web Routes (Authentication Required)

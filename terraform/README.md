@@ -100,6 +100,24 @@ terraform apply
 | deploy_branch | Git branch for deployments | - |
 | route53_zone_id | Route 53 hosted zone ID | - |
 
+## Web Authentication Environment Variables
+
+For web applications using session-based (cookie) authentication, configure these environment variables on the deployed EC2 instance:
+
+```env
+# Comma-separated list of domains allowed for stateful (cookie-based) authentication
+# Example: staging-api.storywriter.net,staging-web.storywriter.net
+SANCTUM_STATEFUL_DOMAINS=api.example.com,web.example.com
+
+# Frontend URL (used for automatic stateful domain extraction)
+# Example: https://staging-web.storywriter.net
+FRONTEND_URL=https://web.example.com
+```
+
+These variables enable CORS credentials and httpOnly cookie-based sessions for the web frontend.
+
+Add these to your deployment environment (EC2 user data, .env file, or docker compose) before deploying the Laravel application.
+
 ## State Management
 
 Each environment has its own state file stored in S3:
