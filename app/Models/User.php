@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -78,5 +79,10 @@ class User extends Authenticatable
     public function elevenLabsUsage(): HasMany
     {
         return $this->hasMany(ElevenLabsUsage::class);
+    }
+
+    public function savedStories(): BelongsToMany
+    {
+        return $this->belongsToMany(Story::class, 'user_saved_stories')->withTimestamps();
     }
 }

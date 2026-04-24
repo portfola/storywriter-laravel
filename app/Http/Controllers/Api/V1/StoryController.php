@@ -67,4 +67,32 @@ class StoryController extends Controller
 
         return response()->json(null, 204);
     }
+
+    /**
+     * Get the authenticated user's saved stories.
+     */
+    public function saved()
+    {
+        return StoryResource::collection(auth()->user()->savedStories()->orderByDesc('user_saved_stories.created_at')->get());
+    }
+
+    /**
+     * Save a story for the authenticated user.
+     */
+    public function save(Story $story)
+    {
+        auth()->user()->savedStories()->syncWithoutDetaching([$story->id]);
+
+        return StoryResource::make($story->load('pages'));
+    }
+
+    /**
+     * Unsave a story for the authenticated user.
+     */
+    public function unsave(Story $story)
+    {
+        auth()->user()->savedStories()->detach($story->id);
+
+        return response()->json(null, 204);
+    }
 }

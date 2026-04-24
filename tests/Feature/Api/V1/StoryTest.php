@@ -60,4 +60,75 @@ class StoryTest extends TestCase
             ],
         ]);
     }
+
+    public function test_user_can_get_saved_stories(): void
+    {
+        // Arrange: create a user with saved stories
+        $user = User::factory()->create();
+        $story1 = Story::factory()->for(User::factory())->create();
+        $story2 = Story::factory()->for(User::factory())->create();
+        $user->savedStories()->attach([$story1->id, $story2->id]);
+
+        Sanctum::actingAs($user);
+
+        // Act
+        $response = $this->getJson('/api/v1/stories/saved');
+
+        // Assert: returns saved stories ordered by most recent first
+        $response->assertOk();
+        $response->assertJsonCount(2, 'data');
+    }
+
+    public function test_user_can_save_story(): void
+    {
+        // Arrange: create users and a story
+        $user = User::factory()->create();
+        $story = Story::factory()->for(User::factory())->create();
+
+        Sanctum::actingAs($user);
+
+        // Act
+        $response = $this->postJson("/api/v1/stories/{$story->slug}/save");
+
+        // Assert: 200 with story data
+        $response->assertOk();
+        $response->assertJsonStructure([
+            'data' => ['id', 'name', 'slug', 'body', 'prompt', 'user_id', 'created_at', 'updated_at'],
+        ]);
+        $this->assertTrue($user->fresh()->savedStories()->where('story_id', $story->id)->exists());
+    }
+
+    public function test_user_can_unsave_story(): void
+    {
+        // Arrange: create a user with a saved story
+        $user = User::factory()->create();
+        $story = Story::factory()->for(User::factory())->create();
+        $user->savedStories()->attach($story->id);
+
+        Sanctum::actingAs($user);
+
+        // Act
+        $response = $this->deleteJson("/api/v1/stories/{$story->slug}/unsave");
+
+        // Assert: 204 No Content and story is no longer saved
+        $response->assertNoContent();
+        $this->assertFalse($user->fresh()->savedStories()->where('story_id', $story->id)->exists());
+    }
+
+    public function test_saving_story_twice_does_not_create_duplicate(): void
+    {
+        // Arrange: create users and a story
+        $user = User::factory()->create();
+        $story = Story::factory()->for(User::factory())->create();
+
+        Sanctum::actingAs($user);
+
+        // Act: save the story twice
+        $this->postJson("/api/v1/stories/{$story->slug}/save");
+        $response = $this->postJson("/api/v1/stories/{$story->slug}/save");
+
+        // Assert: still successful and only one entry in pivot table
+        $response->assertOk();
+        $this->assertEquals(1, $user->fresh()->savedStories()->where('story_id', $story->id)->count());
+    }
 }

@@ -37,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
 // })->middleware('auth:sanctum');
 
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+    Route::get('/stories/saved', [StoryController::class, 'saved']);
+    Route::post('/stories/{story}/save', [StoryController::class, 'save']);
+    Route::delete('/stories/{story}/unsave', [StoryController::class, 'unsave']);
     Route::apiResource('/stories', StoryController::class);
 });
 
