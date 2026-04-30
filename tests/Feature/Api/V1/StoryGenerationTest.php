@@ -61,7 +61,7 @@ STORY;
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        $response = $this->postJson('/api/stories/generate', []);
+        $response = $this->postJson('/api/v1/stories/generate', []);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['transcript']);
@@ -98,7 +98,7 @@ STORY;
             ],
         ];
 
-        $response = $this->postJson('/api/stories/generate', $payload);
+        $response = $this->postJson('/api/v1/stories/generate', $payload);
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -170,7 +170,7 @@ STORY;
             'options' => [],
         ];
 
-        $response = $this->postJson('/api/stories/generate', $payload);
+        $response = $this->postJson('/api/v1/stories/generate', $payload);
 
         $response->assertStatus(503)
             ->assertJson([

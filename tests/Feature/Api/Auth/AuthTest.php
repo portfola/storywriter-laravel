@@ -14,7 +14,7 @@ class AuthTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->postJson('/api/auth/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
             'password' => 'password',
         ]);
@@ -27,7 +27,7 @@ class AuthTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->postJson('/api/auth/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
@@ -41,7 +41,7 @@ class AuthTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user, 'sanctum')
-            ->getJson('/api/user');
+            ->getJson('/api/v1/user');
 
         $response->assertOk();
         $response->assertJson([
@@ -53,14 +53,14 @@ class AuthTest extends TestCase
 
     public function test_unauthenticated_user_cannot_fetch_profile(): void
     {
-        $response = $this->getJson('/api/user');
+        $response = $this->getJson('/api/v1/user');
 
         $response->assertStatus(401);
     }
 
     public function test_user_with_invalid_token_gets_401(): void
     {
-        $response = $this->getJson('/api/user', [
+        $response = $this->getJson('/api/v1/user', [
             'Authorization' => 'Bearer invalid-token',
         ]);
 

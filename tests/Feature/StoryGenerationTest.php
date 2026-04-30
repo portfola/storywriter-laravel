@@ -31,7 +31,7 @@ class StoryGenerationTest extends TestCase
         ]);
 
         // 2. ACTION (Using the CLEAN URL)
-        $response = $this->actingAs($user)->postJson('/api/stories/generate', [
+        $response = $this->actingAs($user)->postJson('/api/v1/stories/generate', [
             'transcript' => 'Tell me a story about testing.',
         ]);
 
@@ -56,7 +56,7 @@ class StoryGenerationTest extends TestCase
         $user = User::factory()->create();
 
         // Using the CLEAN URL
-        $response = $this->actingAs($user)->postJson('/api/stories/generate', []);
+        $response = $this->actingAs($user)->postJson('/api/v1/stories/generate', []);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['transcript']);

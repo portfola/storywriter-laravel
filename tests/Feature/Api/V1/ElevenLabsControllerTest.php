@@ -62,7 +62,7 @@ class ElevenLabsControllerTest extends TestCase
     /** @test */
     public function it_requires_authentication_for_tts()
     {
-        $response = $this->postJson('/api/conversation/tts', [
+        $response = $this->postJson('/api/v1/conversation/tts', [
             'text' => 'Test narration',
             'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
         ]);
@@ -76,7 +76,7 @@ class ElevenLabsControllerTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
 
@@ -90,7 +90,7 @@ class ElevenLabsControllerTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Test narration',
             ]);
 
@@ -107,7 +107,7 @@ class ElevenLabsControllerTest extends TestCase
         $longText = str_repeat('a', 5001);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $longText,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -131,7 +131,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Once upon a time in a magical forest...',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -164,7 +164,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Test with custom model',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
                 'options' => [
@@ -203,7 +203,7 @@ class ElevenLabsControllerTest extends TestCase
         ];
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Story with custom voice settings',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
                 'options' => [
@@ -239,7 +239,7 @@ class ElevenLabsControllerTest extends TestCase
 
         // Cassidy voice (56AoDkrOh6qfVPDXZ7Pt) is recommended for children's stories
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'The brave little knight went on an adventure.',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt', // Cassidy - child-friendly voice
             ]);
@@ -262,7 +262,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Test with invalid voice',
                 'voiceId' => 'invalid-voice-id',
             ]);
@@ -287,7 +287,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Test rate limit',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -320,7 +320,7 @@ class ElevenLabsControllerTest extends TestCase
 
         foreach ($pages as $pageText) {
             $response = $this->actingAs($user)
-                ->postJson('/api/conversation/tts', [
+                ->postJson('/api/v1/conversation/tts', [
                     'text' => $pageText,
                     'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
                     'options' => [
@@ -343,7 +343,7 @@ class ElevenLabsControllerTest extends TestCase
     /** @test */
     public function it_requires_authentication_for_voices_endpoint()
     {
-        $response = $this->getJson('/api/conversation/voices');
+        $response = $this->getJson('/api/v1/conversation/voices');
 
         $response->assertStatus(401);
     }
@@ -373,7 +373,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->getJson('/api/conversation/voices');
+            ->getJson('/api/v1/conversation/voices');
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -398,7 +398,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->getJson('/api/conversation/voices');
+            ->getJson('/api/v1/conversation/voices');
 
         $response->assertStatus(401)
             ->assertJson([
@@ -423,7 +423,7 @@ class ElevenLabsControllerTest extends TestCase
         $startTime = microtime(true);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Performance test for eleven_flash_v2_5 model',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -462,7 +462,7 @@ class ElevenLabsControllerTest extends TestCase
         $voiceId = '56AoDkrOh6qfVPDXZ7Pt';
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => $voiceId,
             ]);
@@ -501,7 +501,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 1000);
 
         $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -528,7 +528,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 1000);
 
         $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
                 'options' => [
@@ -556,7 +556,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'This should fail',
                 'voiceId' => 'invalid-voice-id',
             ]);
@@ -585,7 +585,7 @@ class ElevenLabsControllerTest extends TestCase
         // Make 3 TTS requests
         for ($i = 1; $i <= 3; $i++) {
             $this->actingAs($user)
-                ->postJson('/api/conversation/tts', [
+                ->postJson('/api/v1/conversation/tts', [
                     'text' => "Story page {$i} narration text",
                     'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
                 ]);
@@ -620,14 +620,14 @@ class ElevenLabsControllerTest extends TestCase
 
         // User 1 makes a TTS request
         $this->actingAs($user1)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'User 1 narration',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
 
         // User 2 makes a TTS request
         $this->actingAs($user2)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'User 2 narration',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -682,7 +682,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 150);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -731,7 +731,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 150);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -788,7 +788,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 100);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -843,7 +843,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 350);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -890,7 +890,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 100);
 
         $response = $this->actingAs($user2)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -900,7 +900,7 @@ class ElevenLabsControllerTest extends TestCase
 
         // User 1 tries to use 100 characters (should fail - exceeded their limit)
         $response = $this->actingAs($user1)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -930,7 +930,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 1000);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -940,7 +940,7 @@ class ElevenLabsControllerTest extends TestCase
 
         // Try to use 1 more character (should fail - exceeds limit)
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'a',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -980,7 +980,7 @@ class ElevenLabsControllerTest extends TestCase
         $text = str_repeat('a', 100);
 
         $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => $text,
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -1003,7 +1003,7 @@ class ElevenLabsControllerTest extends TestCase
     /** @test */
     public function it_requires_authentication_for_sdk_credentials()
     {
-        $response = $this->postJson('/api/conversation/sdk-credentials');
+        $response = $this->postJson('/api/v1/conversation/sdk-credentials');
 
         $response->assertStatus(401);
     }
@@ -1014,7 +1014,7 @@ class ElevenLabsControllerTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)
-            ->getJson('/api/conversation/sdk-credentials');
+            ->getJson('/api/v1/conversation/sdk-credentials');
 
         $response->assertStatus(405);
     }
@@ -1033,7 +1033,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/sdk-credentials');
+            ->postJson('/api/v1/conversation/sdk-credentials');
 
         $response->assertStatus(200)
             ->assertJsonStructure(['signed_url']);
@@ -1056,7 +1056,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/sdk-credentials');
+            ->postJson('/api/v1/conversation/sdk-credentials');
 
         $response->assertStatus(404)
             ->assertJson([
@@ -1072,7 +1072,7 @@ class ElevenLabsControllerTest extends TestCase
         config(['services.elevenlabs.api_key' => null]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/sdk-credentials');
+            ->postJson('/api/v1/conversation/sdk-credentials');
 
         $response->assertStatus(500)
             ->assertJson([
@@ -1094,7 +1094,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Test with invalid API key',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);
@@ -1121,7 +1121,7 @@ class ElevenLabsControllerTest extends TestCase
         });
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/tts', [
+            ->postJson('/api/v1/conversation/tts', [
                 'text' => 'Test with network timeout',
                 'voiceId' => '56AoDkrOh6qfVPDXZ7Pt',
             ]);

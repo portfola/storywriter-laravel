@@ -74,7 +74,7 @@ STORY;
             ], 200),
         ]);
 
-        $response = $this->postJson('/api/stories/generate', [
+        $response = $this->postJson('/api/v1/stories/generate', [
             'transcript' => 'A story about a dragon who loves to read',
         ]);
 
@@ -130,7 +130,7 @@ STORY;
             ], 503),
         ]);
 
-        $response = $this->postJson('/api/stories/generate', [
+        $response = $this->postJson('/api/v1/stories/generate', [
             'transcript' => 'A story about a brave robot',
         ]);
 
@@ -179,7 +179,7 @@ STORY;
             ], 200),
         ]);
 
-        $response = $this->postJson('/api/stories/generate', [
+        $response = $this->postJson('/api/v1/stories/generate', [
             'transcript' => 'A story about a magical garden',
         ]);
 
@@ -220,7 +220,7 @@ STORY;
             ], 200),
         ]);
 
-        $response = $this->postJson('/api/stories/generate', [
+        $response = $this->postJson('/api/v1/stories/generate', [
             'transcript' => 'A story about a star',
         ]);
 
@@ -260,7 +260,7 @@ STORY;
             ], 200),
         ]);
 
-        $response = $this->postJson('/api/stories/generate', [
+        $response = $this->postJson('/api/v1/stories/generate', [
             'transcript' => 'Generate a story',
         ]);
 
@@ -297,7 +297,7 @@ STORY;
             ], 200),
         ]);
 
-        $response = $this->postJson('/api/stories/generate', [
+        $response = $this->postJson('/api/v1/stories/generate', [
             'transcript' => 'A story about a dragon and a girl',
         ]);
 

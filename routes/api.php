@@ -9,44 +9,31 @@ use App\Http\Controllers\Api\V1\StoryGenerationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Route to login to API
-Route::prefix('auth')->group(function () {
-    Route::post('/login', LoginController::class);
-});
-
-// Public Routes
-Route::post('/login', [AuthController::class, 'login']);
-
-// Protected Routes (The "Sealed Off" Area)
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', function (Request $request) {
-        return $request->user();
+Route::prefix('v1')->group(function () {
+    // Public routes
+    Route::get('/health', fn() => response()->json(['status' => 'ok']));
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::prefix('auth')->group(function () {
+        Route::post('/login', LoginController::class);
     });
 
-    // Add your app data routes here.
-    Route::post('stories/generate', [StoryGenerationController::class, 'generate']);
-    Route::post('/heartbeat', [AuthController::class, 'heartbeat']);
+    // Protected routes
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/user', fn(Request $request) => $request->user());
+        Route::post('/heartbeat', [AuthController::class, 'heartbeat']);
+        Route::post('/stories/generate', [StoryGenerationController::class, 'generate']);
+        Route::post('/stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate']);
 
-    Route::post('/generate-story', [StoryController::class, 'generate'])->middleware('log.story');
+        Route::get('/stories/saved', [StoryController::class, 'saved']);
+        Route::post('/stories/{story}/save', [StoryController::class, 'save']);
+        Route::delete('/stories/{story}/unsave', [StoryController::class, 'unsave']);
+        Route::apiResource('/stories', StoryController::class);
 
-    Route::post('stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate']);
-});
-
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
-
-Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
-    Route::get('/stories/saved', [StoryController::class, 'saved']);
-    Route::post('/stories/{story}/save', [StoryController::class, 'save']);
-    Route::delete('/stories/{story}/unsave', [StoryController::class, 'unsave']);
-    Route::apiResource('/stories', StoryController::class);
-});
-
-// ElevenLabs conversation endpoints - require authentication
-Route::prefix('conversation')->middleware('auth:sanctum')->group(function () {
-    Route::post('/sdk-credentials', [ElevenLabsController::class, 'sdkCredentials']);
-    Route::post('/proxy', [ElevenLabsController::class, 'conversationProxy']);
-    Route::post('/tts', [ElevenLabsController::class, 'textToSpeech']);
-    Route::get('/voices', [ElevenLabsController::class, 'voices']);
+        Route::prefix('conversation')->group(function () {
+            Route::post('/sdk-credentials', [ElevenLabsController::class, 'sdkCredentials']);
+            Route::post('/proxy', [ElevenLabsController::class, 'conversationProxy']);
+            Route::post('/tts', [ElevenLabsController::class, 'textToSpeech']);
+            Route::get('/voices', [ElevenLabsController::class, 'voices']);
+        });
+    });
 });
