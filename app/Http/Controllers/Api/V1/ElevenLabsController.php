@@ -19,10 +19,6 @@ class ElevenLabsController extends Controller
      */
     public function sdkCredentials(Request $request)
     {
-        $request->validate([
-            'agentId' => 'required|string',
-        ]);
-
         $apiKey = config('services.elevenlabs.api_key');
         if (! $apiKey) {
             Log::error('ElevenLabs API key not configured', [
@@ -34,11 +30,13 @@ class ElevenLabsController extends Controller
             ], 500);
         }
 
+        $agentId = config('services.elevenlabs.agent_id');
+
         // Get signed URL from ElevenLabs
         $response = Http::withHeaders([
             'xi-api-key' => $apiKey,
         ])->get('https://api.elevenlabs.io/v1/convai/conversation/get_signed_url', [
-            'agent_id' => $request->agentId,
+            'agent_id' => $agentId,
         ]);
 
         if (! $response->successful()) {
@@ -49,7 +47,6 @@ class ElevenLabsController extends Controller
 
             Log::log($logLevel, $logMessage, [
                 'user_id' => $request->user()?->id,
-                'agent_id' => $request->agentId,
                 'status' => $response->status(),
                 'response' => $response->json(),
                 'rate_limited' => $response->status() === 429,
@@ -63,7 +60,6 @@ class ElevenLabsController extends Controller
 
         Log::info('ElevenLabs signed URL generated', [
             'user_id' => $request->user()?->id,
-            'agent_id' => $request->agentId,
         ]);
 
         return response()->json($response->json());
@@ -78,13 +74,12 @@ class ElevenLabsController extends Controller
         $request->validate([
             'sessionId' => 'required|string|uuid',
             'action' => 'required|string|in:start,message,end',
-            'agentId' => 'required|string',
             'message' => 'nullable|string|max:5000',
         ]);
 
         // Validate session
         $session = Cache::get("elevenlabs_session:{$request->sessionId}");
-        if (! $session || $session['agent_id'] !== $request->agentId) {
+        if (! $session) {
             return response()->json(['error' => 'Invalid or expired session'], 401);
         }
 
@@ -93,6 +88,8 @@ class ElevenLabsController extends Controller
             return response()->json(['error' => 'ELEVENLABS_API_KEY is not configured'], 500);
         }
 
+        $agentId = config('services.elevenlabs.agent_id');
+
         // Handle different conversation actions
         switch ($request->action) {
             case 'start':
@@ -100,7 +97,7 @@ class ElevenLabsController extends Controller
                     'xi-api-key' => $apiKey,
                     'Content-Type' => 'application/json',
                 ])->post('https://api.elevenlabs.io/v1/convai/conversation', [
-                    'agent_id' => $request->agentId,
+                    'agent_id' => $agentId,
                 ]);
                 break;
 
@@ -116,7 +113,7 @@ class ElevenLabsController extends Controller
                 if ($response->successful() && $request->message) {
                     ElevenLabsUsage::logConversationRequest(
                         message: $request->message,
-                        agentId: $request->agentId
+                        agentId: $agentId
                     );
                 }
                 break;
@@ -137,7 +134,6 @@ class ElevenLabsController extends Controller
             if ($response->status() === 429) {
                 Log::warning('ElevenLabs rate limit exceeded on conversation request', [
                     'user_id' => $request->user()?->id,
-                    'agent_id' => $request->agentId,
                     'action' => $request->action,
                     'session_id' => $request->sessionId,
                     'status' => 429,

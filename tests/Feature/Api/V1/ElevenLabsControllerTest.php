@@ -1003,9 +1003,7 @@ class ElevenLabsControllerTest extends TestCase
     /** @test */
     public function it_requires_authentication_for_sdk_credentials()
     {
-        $response = $this->postJson('/api/conversation/sdk-credentials', [
-            'agentId' => 'test-agent-id',
-        ]);
+        $response = $this->postJson('/api/conversation/sdk-credentials');
 
         $response->assertStatus(401);
     }
@@ -1016,21 +1014,9 @@ class ElevenLabsControllerTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)
-            ->getJson('/api/conversation/sdk-credentials?agentId=test-agent-id');
+            ->getJson('/api/conversation/sdk-credentials');
 
         $response->assertStatus(405);
-    }
-
-    /** @test */
-    public function it_requires_agent_id_for_sdk_credentials()
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)
-            ->postJson('/api/conversation/sdk-credentials', []);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['agentId']);
     }
 
     /** @test */
@@ -1038,23 +1024,23 @@ class ElevenLabsControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
+        config(['services.elevenlabs.agent_id' => 'server-side-agent-id']);
+
         Http::fake([
             'api.elevenlabs.io/v1/convai/conversation/get_signed_url*' => Http::response([
-                'signed_url' => 'wss://api.elevenlabs.io/v1/convai/conversation?agent_id=test-agent-id&signature=abc123',
+                'signed_url' => 'wss://api.elevenlabs.io/v1/convai/conversation?agent_id=server-side-agent-id&signature=abc123',
             ], 200),
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/sdk-credentials', [
-                'agentId' => 'test-agent-id',
-            ]);
+            ->postJson('/api/conversation/sdk-credentials');
 
         $response->assertStatus(200)
             ->assertJsonStructure(['signed_url']);
 
         Http::assertSent(function ($request) {
             return str_contains($request->url(), 'api.elevenlabs.io/v1/convai/conversation/get_signed_url') &&
-                   $request['agent_id'] === 'test-agent-id';
+                   $request['agent_id'] === 'server-side-agent-id';
         });
     }
 
@@ -1070,9 +1056,7 @@ class ElevenLabsControllerTest extends TestCase
         ]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/sdk-credentials', [
-                'agentId' => 'invalid-agent-id',
-            ]);
+            ->postJson('/api/conversation/sdk-credentials');
 
         $response->assertStatus(404)
             ->assertJson([
@@ -1088,9 +1072,7 @@ class ElevenLabsControllerTest extends TestCase
         config(['services.elevenlabs.api_key' => null]);
 
         $response = $this->actingAs($user)
-            ->postJson('/api/conversation/sdk-credentials', [
-                'agentId' => 'test-agent-id',
-            ]);
+            ->postJson('/api/conversation/sdk-credentials');
 
         $response->assertStatus(500)
             ->assertJson([

@@ -47,6 +47,7 @@ return [
 
     'elevenlabs' => [
         'api_key' => env('ELEVENLABS_API_KEY'),
+        'agent_id' => env('ELEVENLABS_AGENT_ID'),
         'default_voice_id' => env('ELEVENLABS_DEFAULT_VOICE_ID', '56AoDkrOh6qfVPDXZ7Pt'),
         'default_model' => env('ELEVENLABS_DEFAULT_MODEL', 'eleven_flash_v2_5'),
         'timeout' => env('ELEVENLABS_TIMEOUT', 30),
