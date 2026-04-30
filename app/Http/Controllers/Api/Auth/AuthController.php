@@ -29,7 +29,7 @@ class AuthController extends Controller
         // Create the token
         $token = $user->createToken($request->device_name)->plainTextToken;
 
-        if (config('services.posthog.api_key')) {
+        if (app()->environment('production') && config('services.posthog.api_key')) {
             PostHog::capture([
                 'distinctId' => (string) $user->id,
                 'event' => 'login_completed',

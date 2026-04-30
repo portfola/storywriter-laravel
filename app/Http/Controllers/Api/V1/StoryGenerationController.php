@@ -39,7 +39,7 @@ class StoryGenerationController extends Controller
 
         $userId = (string) (auth()->id() ?? 1);
 
-        if (config('services.posthog.api_key')) {
+        if (app()->environment('production') && config('services.posthog.api_key')) {
             PostHog::capture([
                 'distinctId' => $userId,
                 'event' => 'story_generation_requested',
@@ -106,7 +106,7 @@ class StoryGenerationController extends Controller
                 'message' => $e->getMessage(),
             ]);
 
-            if (config('services.posthog.api_key')) {
+            if (app()->environment('production') && config('services.posthog.api_key')) {
                 PostHog::capture([
                     'distinctId' => $userId,
                     'event' => 'story_generation_failed',
@@ -133,7 +133,7 @@ class StoryGenerationController extends Controller
                 'body' => $textResponse->json(),
             ]);
 
-            if (config('services.posthog.api_key')) {
+            if (app()->environment('production') && config('services.posthog.api_key')) {
                 PostHog::capture([
                     'distinctId' => $userId,
                     'event' => 'story_generation_failed',
@@ -238,7 +238,7 @@ class StoryGenerationController extends Controller
             \Log::error('DB SAVE ERROR: '.$e->getMessage());
         }
 
-        if (config('services.posthog.api_key')) {
+        if (app()->environment('production') && config('services.posthog.api_key')) {
             PostHog::capture([
                 'distinctId' => $userId,
                 'event' => 'story_generation_completed',
