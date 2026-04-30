@@ -2950,22 +2950,22 @@
         },
         {
             "name": "posthog/posthog-php",
-            "version": "4.0.1",
+            "version": "4.2.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PostHog/posthog-php.git",
-                "reference": "4cc17306c5478ce7904c84d9cc73107864c70402"
+                "reference": "d70e432af7f58c30e6d0ee9f8a414938c2c98f71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PostHog/posthog-php/zipball/4cc17306c5478ce7904c84d9cc73107864c70402",
-                "reference": "4cc17306c5478ce7904c84d9cc73107864c70402",
+                "url": "https://api.github.com/repos/PostHog/posthog-php/zipball/d70e432af7f58c30e6d0ee9f8a414938c2c98f71",
+                "reference": "d70e432af7f58c30e6d0ee9f8a414938c2c98f71",
                 "shasum": ""
             },
             "require": {
                 "ext-json": "*",
                 "php": ">=8.2",
-                "symfony/clock": "^6.2|^7.0"
+                "symfony/clock": "^6.2|^7.0|^8.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "^11.0",
@@ -2986,7 +2986,7 @@
             ],
             "authors": [
                 {
-                    "name": "PostHog <hey@posthog.com>",
+                    "name": "PostHog <engineering@posthog.com>",
                     "homepage": "https://posthog.com/"
                 }
             ],
@@ -2997,9 +2997,9 @@
             ],
             "support": {
                 "issues": "https://github.com/PostHog/posthog-php/issues",
-                "source": "https://github.com/PostHog/posthog-php/tree/4.0.1"
+                "source": "https://github.com/PostHog/posthog-php/tree/4.2.4"
             },
-            "time": "2026-02-06T19:15:46+00:00"
+            "time": "2026-04-28T17:56:03+00:00"
         },
         {
             "name": "psr/clock",
