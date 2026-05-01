@@ -20,6 +20,7 @@ class Story extends Model
         'body',     // Or 'content', check your database migration!
         'prompt',
         'characters_description',
+        'elevenlabs_conversation_id',
     ];
 
     public function getRouteKeyName()

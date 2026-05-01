@@ -23,6 +23,7 @@ class StoryResource extends JsonResource
             'body' => $this->body,
             'prompt' => $this->prompt,
             'user_id' => $this->user_id,
+            'elevenlabs_conversation_id' => $this->elevenlabs_conversation_id,
             'pages' => $this->whenLoaded('pages', fn () => $this->pages->sortBy('page_number')->values()->map(fn ($p) => [
                 'pageNumber' => $p->page_number,
                 'content' => $p->content,

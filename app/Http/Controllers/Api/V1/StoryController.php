@@ -7,6 +7,7 @@ use App\Http\Requests\StoreStoryRequest;
 use App\Http\Requests\UpdateStoryRequest;
 use App\Http\Resources\StoryResource;
 use App\Models\Story;
+use Illuminate\Http\Request;
 
 class StoryController extends Controller
 {
@@ -79,9 +80,17 @@ class StoryController extends Controller
     /**
      * Save a story for the authenticated user.
      */
-    public function save(Story $story)
+    public function save(Request $request, Story $story)
     {
+        $validated = $request->validate([
+            'elevenlabs_conversation_id' => 'nullable|string|max:255',
+        ]);
+
         auth()->user()->savedStories()->syncWithoutDetaching([$story->id]);
+
+        if (! empty($validated['elevenlabs_conversation_id']) && empty($story->elevenlabs_conversation_id)) {
+            $story->update(['elevenlabs_conversation_id' => $validated['elevenlabs_conversation_id']]);
+        }
 
         return StoryResource::make($story->load('pages'));
     }

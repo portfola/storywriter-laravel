@@ -131,4 +131,42 @@ class StoryTest extends TestCase
         $response->assertOk();
         $this->assertEquals(1, $user->fresh()->savedStories()->where('story_id', $story->id)->count());
     }
+
+    public function test_save_persists_elevenlabs_conversation_id_on_story(): void
+    {
+        // Arrange: create a user and a story without a conversation ID
+        $user = User::factory()->create();
+        $story = Story::factory()->for(User::factory())->create();
+
+        Sanctum::actingAs($user);
+
+        // Act: save the story with an ElevenLabs conversation ID payload
+        $response = $this->postJson("/api/v1/stories/{$story->slug}/save", [
+            'elevenlabs_conversation_id' => 'conv_abc123',
+        ]);
+
+        // Assert: 200 and the conversation ID is now stored on the story row
+        $response->assertOk();
+        $this->assertEquals('conv_abc123', $story->fresh()->elevenlabs_conversation_id);
+    }
+
+    public function test_save_does_not_overwrite_existing_elevenlabs_conversation_id(): void
+    {
+        // Arrange: story already has a conversation ID stored
+        $user = User::factory()->create();
+        $story = Story::factory()->for(User::factory())->create([
+            'elevenlabs_conversation_id' => 'conv_original',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        // Act: save with a different conversation ID
+        $response = $this->postJson("/api/v1/stories/{$story->slug}/save", [
+            'elevenlabs_conversation_id' => 'conv_new',
+        ]);
+
+        // Assert: original ID is preserved
+        $response->assertOk();
+        $this->assertEquals('conv_original', $story->fresh()->elevenlabs_conversation_id);
+    }
 }
