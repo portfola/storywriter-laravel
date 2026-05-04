@@ -13,7 +13,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  profile = "storywriter-sub"
+  profile = "storywriter"
 }
 
 # Variables
