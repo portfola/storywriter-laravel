@@ -62,9 +62,9 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach($stories as $story)
-                    <pre>
+                    <!-- <pre>
                     {{ print_r($story) }}
-                    </pre>
+                    </pre> -->
                     <tr>
                         <td class="px-6 py-4">
                         <a href="{{ route('dashboard.story', $story->slug) }}" class="text-blue-600 hover:text-blue-800">

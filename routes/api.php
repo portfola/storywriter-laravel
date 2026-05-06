@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\V1\StoryGenerationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+use App\Http\Controllers\Api\Heirloom\V1\NarrativeController;
+
 // Route to login to API
 Route::prefix('auth')->group(function () {
     Route::post('/login', LoginController::class);
@@ -47,3 +49,13 @@ Route::prefix('conversation')->middleware('auth:sanctum')->group(function () {
     Route::post('/tts', [ElevenLabsController::class, 'textToSpeech']);
     Route::get('/voices', [ElevenLabsController::class, 'voices']);
 });
+
+
+// Calls Heirloom routes: 
+Route::prefix('heirloom/v1')
+    ->name('heirloom.v1.')
+    ->middleware('auth:sanctum')
+    ->group(base_path('routes/heirloom_v1.php'));
+
+Route::get('/heirloom/share/{token}', [NarrativeController::class, 'showByToken'])
+    ->name('narratives.share');

@@ -25,4 +25,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/stories/{story}', [DashboardController::class, 'show'])->name('dashboard.story');
 });
 
+
+//Heirloom Dashboard
+Route::prefix('heirloom')
+    ->name('heirloom.')
+    ->middleware(['auth'])
+    ->group(base_path('routes/heirloom_web.php'));
+
 require __DIR__.'/auth.php';
