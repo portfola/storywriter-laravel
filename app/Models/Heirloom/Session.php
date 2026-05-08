@@ -30,4 +30,14 @@ class Session extends Model
     {
         return $this->belongsTo(Subject::class);
     }
+
+    public function narratives()
+    {
+        return $this->hasMany(Narrative::class, 'session_id');
+    }
+
+    public function transcript()
+    {
+        return $this->hasOne(Transcript::class, 'session_id');
+    }
 }

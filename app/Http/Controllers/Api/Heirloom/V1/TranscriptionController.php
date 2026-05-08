@@ -31,6 +31,30 @@ class TranscriptionController extends Controller
             'user_id' => $request->user()->id,
             'transcript_text' => $transcriptText,
             'status' => 'completed',
+            'source' => 'audio',  // add this line
+        ]);
+
+        $session->update(['status' => 'transcribed']);
+
+        return response()->json($transcript, 201);
+    }
+
+    public function storeManual(Request $request, Session $session)
+    {
+        if ($session->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $request->validate([
+            'transcript_text' => 'required|string|min:50',
+        ]);
+
+        $transcript = Transcript::create([
+            'session_id' => $session->id,
+            'user_id' => $request->user()->id,
+            'transcript_text' => $request->input('transcript_text'),
+            'status' => 'completed',
+            'source' => 'manual',
         ]);
 
         $session->update(['status' => 'transcribed']);

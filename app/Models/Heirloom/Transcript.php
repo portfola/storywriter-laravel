@@ -17,6 +17,7 @@ class Transcript extends Model
         'user_id',
         'transcript_text',
         'status',
+        'source',
         'language',
         'duration_seconds',
     ];
