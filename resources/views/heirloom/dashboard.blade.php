@@ -12,17 +12,27 @@
 
         {{-- Stats --}}
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-            @foreach([
-                ['label' => 'Subjects',  'value' => $stats['subjects']],
-                ['label' => 'Sessions',  'value' => $stats['sessions']],
-                ['label' => 'Transcripts', 'value' => $stats['transcripts']],
-                ['label' => 'Narratives', 'value' => $stats['narratives']],
-                ['label' => 'Audio',     'value' => $stats['audio_sessions']],
-                ['label' => 'Manual',    'value' => $stats['manual_sessions']],
+           @foreach([
+                ['label' => 'Subjects',    'value' => $stats['subjects'],    'route' => null],
+                ['label' => 'Sessions',    'value' => $stats['sessions'],    'route' => route('heirloom.sessions.index')],
+                ['label' => 'Transcripts', 'value' => $stats['transcripts'], 'route' => route('heirloom.transcripts.index')],
+                ['label' => 'Narratives',  'value' => $stats['narratives'],  'route' => null],
+                ['label' => 'Audio',       'value' => $stats['audio_sessions'], 'route' => null],
+                ['label' => 'Manual',      'value' => $stats['manual_sessions'], 'route' => null],
             ] as $stat)
-            <div class="bg-white rounded-lg shadow-sm p-4">
-                <p class="text-xs text-gray-500 uppercase tracking-wide">{{ $stat['label'] }}</p>
-                <p class="text-3xl font-semibold text-gray-900 mt-1">{{ $stat['value'] }}</p>
+            <div class="{{ $stat['route'] ? 'cursor-pointer' : '' }}">
+                @if($stat['route'])
+                <a href="{{ $stat['route'] }}" class="block bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                @else
+                <div class="bg-white rounded-lg shadow-sm p-4">
+                @endif
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">{{ $stat['label'] }}</p>
+                    <p class="text-3xl font-semibold text-gray-900 mt-1">{{ $stat['value'] }}</p>
+            @if($stat['route'])
+            </a>
+            @else
+            </div>
+            @endif
             </div>
             @endforeach
         </div>

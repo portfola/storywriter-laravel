@@ -61,4 +61,19 @@ class TranscriptionController extends Controller
 
         return response()->json($transcript, 201);
     }
+
+    public function show(Request $request, Session $session)
+    {
+        if ($session->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $transcript = Transcript::where('session_id', $session->id)->first();
+
+        if (!$transcript) {
+            return response()->json(['message' => 'No transcript found'], 404);
+        }
+
+        return response()->json($transcript);
+    }
 }

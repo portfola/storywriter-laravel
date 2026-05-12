@@ -14,6 +14,9 @@ Route::apiResource('/sessions', SessionController::class);
 
 Route::post('/sessions/{session}/transcribe', [TranscriptionController::class, 'store'])->name('sessions.transcribe');
 
+Route::get('/sessions/{session}/transcript', [TranscriptionController::class, 'show'])
+    ->name('sessions.transcript.show');
+
 Route::post('/sessions/{session}/transcript', [TranscriptionController::class, 'storeManual'])
     ->name('sessions.transcript.manual');
 
