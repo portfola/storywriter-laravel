@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Http;
 
 class NarrativeService
 {
+    protected string $apiKey;
+    protected string $model;
+    protected string $baseUrl = 'https://api.together.xyz/v1';
 
     public function __construct()
     {

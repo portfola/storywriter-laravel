@@ -107,8 +107,4 @@ return [
     ],
 
 
-    'together' => [
-        'key' => env('TOGETHER_API_KEY'),
-    ],
-
 ];
