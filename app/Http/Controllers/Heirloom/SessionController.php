@@ -10,6 +10,7 @@ class SessionController extends Controller
     public function index()
     {
         $sessions = Session::with(['subject', 'transcript'])
+            ->withCount('narratives')
             ->latest()
             ->paginate(20);
 
@@ -20,5 +21,13 @@ class SessionController extends Controller
     {
         $session->load(['subject', 'transcript', 'narratives']);
         return view('heirloom.sessions.show', compact('session'));
+    }
+
+    public function destroy(Session $session)
+    {
+        $session->delete();
+
+        return redirect()->route('heirloom.sessions.index')
+            ->with('status', 'Session deleted.');
     }
 }

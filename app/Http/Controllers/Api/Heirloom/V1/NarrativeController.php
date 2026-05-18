@@ -54,4 +54,21 @@ class NarrativeController extends Controller
         $narrative = Narrative::where('share_token', $token)->firstOrFail();
         return response()->json($narrative);
     }
+
+    public function destroy(Request $request, Narrative $narrative)
+    {
+        if ($narrative->user_id !== $request->user()->id && ! $request->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $sessionId = $narrative->session_id;
+        $narrative->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json(null, 204);
+        }
+
+        return redirect()->route('heirloom.sessions.show', $sessionId)
+            ->with('status', 'Narrative deleted.');
+    }
 }
