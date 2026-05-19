@@ -2,6 +2,7 @@
 
 namespace App\Services\Heirloom;
 
+use App\Models\Heirloom\Subject;
 use Illuminate\Support\Facades\Http;
 
 class NarrativeService
@@ -16,14 +17,17 @@ class NarrativeService
         $this->model = config('services.together.text_model');
     }
 
-    public function synthesise(string $transcriptText, string $format = 'memoir'): string
+    public function synthesise(Subject $subject, string $format = 'memoir'): string
     {
-        $prompt = $this->buildPrompt($transcriptText, $format);
+        [$transcriptText, $sessionCount] = $this->buildTranscriptText($subject);
+
+        $prompt = $this->buildPrompt($transcriptText, $format, $sessionCount);
 
         $response = Http::withToken($this->apiKey)
+            ->timeout(120)
             ->post("{$this->baseUrl}/chat/completions", [
                 'model' => $this->model,
-                'max_tokens' => 1000,
+                'max_tokens' => 2500,
                 'messages' => [
                     ['role' => 'user', 'content' => $prompt],
                 ],
@@ -36,8 +40,33 @@ class NarrativeService
         return $response->json('choices.0.message.content');
     }
 
-    protected function buildPrompt(string $transcriptText, string $format): string
+    protected function buildTranscriptText(Subject $subject): array
     {
+        $sessions = $subject->sessions()
+            ->with(['transcript' => fn ($q) => $q->where('status', 'completed')])
+            ->get()
+            ->filter(fn ($s) => $s->transcript !== null)
+            ->values();
+
+        if ($sessions->isEmpty()) {
+            throw new \RuntimeException('No completed transcripts found for this subject.');
+        }
+
+        $text = $sessions->map(function ($session, $index) {
+            $label = $session->title
+                ? "Session " . ($index + 1) . " — {$session->title}"
+                : "Session " . ($index + 1);
+
+            return "{$label}:\n\n{$session->transcript->transcript_text}";
+        })->implode("\n\n---\n\n");
+
+        return [$text, $sessions->count()];
+    }
+
+    protected function buildPrompt(string $transcriptText, string $format, int $sessionCount = 1): string
+    {
+        $wordCount = $sessionCount > 1 ? '600 and 900' : '400 and 600';
+
         $formatInstruction = match($format) {
             'letter' => 'Write this as a legacy letter — in the subject\'s voice, addressed to future generations.',
             'timeline' => 'Write this as a timeline of key life moments, in the subject\'s voice.',
@@ -57,7 +86,7 @@ Guidelines:
 - Pay attention to pauses, laughter, and hesitations marked in the transcript — these carry emotional weight.
 - Do not invent facts, memories, or emotions not present in the transcript.
 - Prioritise moments of feeling over moments of fact.
-- Write between 400 and 600 words unless instructed otherwise.
+- Write between {$wordCount} words unless instructed otherwise.
 - End on something that resonates — a thought, an image, a question. Not a summary.
 
 {$formatInstruction}
