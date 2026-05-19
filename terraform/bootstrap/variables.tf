@@ -11,9 +11,3 @@ variable "state_bucket_name" {
   type        = string
   default     = "storywriter-terraform-state-548846592016"
 }
-
-variable "dynamodb_table_name" {
-  description = "Name of the DynamoDB table for state locking"
-  type        = string
-  default     = "storywriter-terraform-locks"
-}

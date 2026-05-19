@@ -1,6 +1,6 @@
 # Terraform S3 Backend Configuration for Production
 #
-# The S3 bucket and DynamoDB table must already exist before running terraform init.
+# The S3 bucket must already exist before running terraform init.
 # Run the bootstrap configuration first: cd ../../bootstrap && terraform apply
 
 terraform {
@@ -9,6 +9,7 @@ terraform {
     key            = "environments/prod/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
-    dynamodb_table = "storywriter-terraform-locks"
+    use_lockfile   = true
+    profile        = "storywriter"
   }
 }
