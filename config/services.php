@@ -92,4 +92,8 @@ return [
         'host' => env('POSTHOG_HOST', 'https://us.i.posthog.com'),
     ],
 
+    'groq' => [
+        'key' => env('GROQ_API_KEY'),
+    ],
+
 ];
