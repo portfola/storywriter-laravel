@@ -54,11 +54,6 @@ variable "app_name" {
   type        = string
 }
 
-variable "github_repo" {
-  description = "GitHub repository URL for the application"
-  type        = string
-}
-
 variable "environment" {
   description = "Environment name"
   type        = string
@@ -111,7 +106,6 @@ module "storywriter_server" {
   instance_type             = var.instance_type
   domain_name               = var.domain_name
   app_name                  = var.app_name
-  github_repo               = var.github_repo
   environment               = var.environment
   ssm_parameter_path        = var.ssm_parameter_path
   database_name             = var.database_name

@@ -5,13 +5,42 @@ set -e
 exec > >(tee /var/log/user-data.log) 2>&1
 echo "Starting provisioning at $(date)"
 
+# Mark failure on any unexpected exit so a post-apply check can detect it.
+trap 'echo "PROVISIONING FAILED at $(date) (exit $?, line $LINENO)"; touch /var/lib/storywriter-provisioning-failed' ERR
+
+# Retry helper for flaky network operations (e.g. external apt repos).
+retry() {
+    local n=1
+    local max=10
+    local delay=30
+    while true; do
+        "$@" && return 0
+        if [ $n -ge $max ]; then
+            echo "Command failed after $max attempts: $*"
+            return 1
+        fi
+        n=$((n + 1))
+        echo "Command failed, retrying ($n/$max) in $delay seconds: $*"
+        sleep $delay
+    done
+}
+
 # Variables from Terraform
 DOMAIN_NAME="${domain_name}"
 APP_NAME="${app_name}"
-GITHUB_REPO="${github_repo}"
 DATABASE_NAME="${database_name}"
 DEPLOY_BRANCH="${deploy_branch}"
 APP_DIR="/var/www/$APP_NAME"
+
+# Make apt resilient to flaky mirrors (ppa.launchpadcontent.net in particular has
+# load-balanced backends that intermittently RST/timeout — apt's internal retries
+# re-resolve DNS and reopen TCP, often landing on a healthy backend).
+cat > /etc/apt/apt.conf.d/99-retries << 'APT_RETRIES_EOF'
+Acquire::Retries "15";
+Acquire::Retries::Delay::Maximum "30";
+Acquire::http::Timeout "30";
+Acquire::https::Timeout "30";
+APT_RETRIES_EOF
 
 # Update system
 apt-get update
@@ -30,12 +59,15 @@ apt-get install -y \
     postgresql \
     postgresql-contrib
 
-# Add PHP 8.4 repository
-add-apt-repository -y ppa:ondrej/php
-apt-get update
+# Add PHP 8.4 repository (PPA fetches are flaky — retry)
+retry add-apt-repository -y ppa:ondrej/php
+retry apt-get update
+# apt-get update returns success even if a single repo's InRelease fetch failed,
+# which would silently leave us with no php8.4 candidates. Verify before continuing.
+retry sh -c "apt-cache policy php8.4-fpm | grep -q 'Candidate:'"
 
 # Install PHP 8.4 and extensions
-apt-get install -y \
+retry apt-get install -y \
     php8.4-fpm \
     php8.4-cli \
     php8.4-common \
@@ -212,8 +244,6 @@ systemctl restart nginx
 echo "Provisioning completed at $(date)"
 echo "Environment: $APP_NAME"
 echo "Deploy Branch: $DEPLOY_BRANCH"
-echo "Next steps:"
-echo "1. Point DNS A record for $DOMAIN_NAME to this server's IP"
-echo "2. Run: sudo certbot --nginx -d $DOMAIN_NAME"
-echo "3. Retrieve database credentials from: sudo cat /root/.db_credentials"
-echo "4. Deploy your application code from the '$DEPLOY_BRANCH' branch"
+
+# Final success marker — absence of this file means provisioning did not finish.
+touch /var/lib/storywriter-provisioned

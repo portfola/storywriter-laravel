@@ -37,11 +37,6 @@ variable "app_name" {
   type        = string
 }
 
-variable "github_repo" {
-  description = "GitHub repository URL for the application"
-  type        = string
-}
-
 variable "environment" {
   description = "Environment name (staging or production)"
   type        = string
