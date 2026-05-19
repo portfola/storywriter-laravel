@@ -35,6 +35,9 @@ Luna: A small red fox with bright green eyes, wearing a blue scarf.
 Oliver: A tall friendly owl with brown and white feathers and round golden glasses.
 [/CHARACTERS]
 
+TITLE: The Adventure of the Brave Little Mouse
+
+STORY:
 Page 1
 Luna the little fox peeked out of her cozy den and sniffed the cool morning air. The forest smelled like pine needles and fresh rain. She wiggled her bushy tail with excitement. Today was the day she would find the hidden waterfall!
 [ILLUSTRATION: A small red fox with a blue scarf emerging from a den in a lush green forest at sunrise, looking excited and curious, morning mist in the background]
