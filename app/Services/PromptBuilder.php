@@ -32,16 +32,25 @@ class PromptBuilder
             $characters = trim($charMatch[1]);
         }
 
-        // Remove the [CHARACTERS] block from text for further parsing
-        $text = preg_replace('/\[CHARACTERS\]\s*\n.*?\n\s*\[\/CHARACTERS\]\s*/s', '', $rawOutput);
-        $text = trim($text);
+        // Strip characters block and any STORY: / TITLE: headers from body
+        $body = preg_replace('/\[CHARACTERS\].*?\[\/CHARACTERS\]/s', '', $rawOutput);
+        $body = preg_replace('/^(TITLE|STORY):\s*/mi', '', $body);
 
-        // Extract title from the first line
-        $firstLine = strtok($text, "\n");
-        $title = trim(str_replace(['Title:', '"', '#', '*'], '', $firstLine)) ?: 'New Story';
-
-        // Remove the title line
-        $body = preg_replace('/^.*\n/', '', $text, 1);
+        // Extract title: prefer explicit "Title:" line anywhere; otherwise fall back to first line
+        $title = 'New Story';
+        if (preg_match('/^Title:\s*(.+)$/mi', $body, $titleMatch)) {
+            $title = trim(str_replace(['"', '#', '*'], '', $titleMatch[1]));
+            $body = preg_replace('/^Title:.*$/mi', '', $body, 1);
+        } else {
+            $firstLine = strtok(trim($body), "\n");
+            if ($firstLine !== false) {
+                $extracted = trim(str_replace(['"', '#', '*'], '', $firstLine));
+                if ($extracted !== '') {
+                    $title = $extracted;
+                    $body = preg_replace('/^.*\n?/', '', trim($body), 1);
+                }
+            }
+        }
         $body = trim($body);
 
         // Split on ---PAGE BREAK--- separator
@@ -69,24 +78,17 @@ class PromptBuilder
                 continue;
             }
 
-            // Fallback if no illustration directive: use truncated page content
-            if (! $illustrationPrompt) {
-                $illustrationPrompt = mb_substr($clean, 0, 200);
-            }
-
             $pages[] = [
                 'content' => $clean,
-                'illustrationPrompt' => $illustrationPrompt,
+                'illustrationPrompt' => $illustrationPrompt ?: mb_substr($clean, 0, 200),
             ];
         }
 
         // Fallback: if parsing produced no pages, use the whole body as one page
         if (empty($pages)) {
-            $fallbackPrompt = mb_substr($body, 0, 200);
-
             $pages[] = [
                 'content' => $body,
-                'illustrationPrompt' => $fallbackPrompt,
+                'illustrationPrompt' => mb_substr($body, 0, 200),
             ];
         }
 
