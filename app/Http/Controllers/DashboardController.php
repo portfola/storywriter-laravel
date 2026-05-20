@@ -70,7 +70,8 @@ class DashboardController extends Controller
 
     public function show(Story $story)
     {
-        return view('web.stories.show', compact('story'));
+        $story->load(['user', 'pages']);
+        return view('dashboard.stories.show', compact('story'));
     }
 
     public function elevenLabsUsage()

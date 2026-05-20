@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\LoginController;
+use App\Http\Controllers\Api\Heirloom\V1\NarrativeController;
 use App\Http\Controllers\Api\V1\ElevenLabsController;
 use App\Http\Controllers\Api\V1\PageImageController;
 use App\Http\Controllers\Api\V1\StoryController;
@@ -37,3 +38,12 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+
+// Heirloom routes (Tim's branch)
+Route::prefix('heirloom/v1')
+    ->name('heirloom.v1.')
+    ->middleware('auth:sanctum')
+    ->group(base_path('routes/heirloom_v1.php'));
+
+Route::get('/heirloom/share/{token}', [NarrativeController::class, 'showByToken'])
+    ->name('narratives.share');
