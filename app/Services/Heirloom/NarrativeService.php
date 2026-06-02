@@ -9,12 +9,15 @@ class NarrativeService
 {
     protected string $apiKey;
     protected string $model;
-    protected string $baseUrl = 'https://api.together.xyz/v1';
+    protected string $baseUrl = 'https://api.groq.com/openai/v1';
+    
 
     public function __construct()
     {
-        $this->apiKey = config('services.together.api_key') ?? '';
-        $this->model = config('services.together.text_model');
+        // $this->apiKey = config('services.together.api_key') ?? '';
+        // $this->model = config('services.together.text_model');
+        $this->apiKey = config('services.groq.key') ?? '';
+        $this->model = 'llama-3.3-70b-versatile';
     }
 
     public function synthesise(Subject $subject, string $format = 'memoir'): string

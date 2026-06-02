@@ -34,10 +34,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate']);
 });
 
-// Route::get('/user', function (Request $request) {
-//     return $request->user();
-// })->middleware('auth:sanctum');
-
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
     Route::apiResource('/stories', StoryController::class);
 });

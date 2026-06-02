@@ -39,6 +39,18 @@ class NarrativeController extends Controller
         return response()->json($narrative, 201);
     }
 
+
+    public function index()
+    {
+        $narratives = Narrative::where('user_id', auth()->id())
+            ->with(['subject', 'session'])
+            ->latest()
+            ->get();
+
+        return view('heirloom.narratives.index', compact('narratives'));
+    }
+
+
     public function show(Request $request, Narrative $narrative)
     {
         if ($narrative->user_id !== $request->user()->id) {
@@ -47,6 +59,7 @@ class NarrativeController extends Controller
 
         return response()->json($narrative);
     }
+
 
     public function showByToken(string $token)
     {
