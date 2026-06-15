@@ -6,9 +6,9 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Analytics;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use PostHog\PostHog;
 
 class AuthController extends Controller
 {
@@ -29,16 +29,10 @@ class AuthController extends Controller
         // Create the token
         $token = $user->createToken($request->device_name)->plainTextToken;
 
-        if (app()->environment('production') && config('services.posthog.api_key')) {
-            PostHog::capture([
-                'distinctId' => (string) $user->id,
-                'event' => 'login_completed',
-                'properties' => [
-                    'is_new_user' => $user->wasRecentlyCreated,
-                    'device_name' => $request->device_name,
-                ],
-            ]);
-        }
+        Analytics::capture((string) $user->id, 'login_completed', [
+            'is_new_user' => $user->wasRecentlyCreated,
+            'device_name' => $request->device_name,
+        ]);
 
         return response()->json([
             'token' => $token,

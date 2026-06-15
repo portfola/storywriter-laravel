@@ -13,9 +13,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Flush PostHog events when the application terminates (production only)
+        // Flush PostHog events when the application terminates
         $this->app->terminating(function () {
-            if ($this->app->environment('production') && config('services.posthog.api_key')) {
+            if (config('services.posthog.enabled')) {
                 PostHog::flush();
             }
         });
@@ -30,10 +30,10 @@ class AppServiceProvider extends ServiceProvider
             return config('app.frontend_url')."/password-reset/$token?email={$notifiable->getEmailForPasswordReset()}";
         });
 
-        // Initialize PostHog in production only
-        $posthogKey = config('services.posthog.api_key');
-        if ($this->app->environment('production') && $posthogKey) {
-            PostHog::init($posthogKey, [
+        // Initialize PostHog when analytics is enabled (production, or any
+        // environment with POSTHOG_FORCE_ENABLE=true)
+        if (config('services.posthog.enabled')) {
+            PostHog::init(config('services.posthog.api_key'), [
                 'host' => config('services.posthog.host', 'https://us.i.posthog.com'),
             ]);
         }

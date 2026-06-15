@@ -90,6 +90,14 @@ return [
     'posthog' => [
         'api_key' => env('POSTHOG_API_KEY'),
         'host' => env('POSTHOG_HOST', 'https://us.i.posthog.com'),
+
+        // Analytics is on in production automatically. Set POSTHOG_FORCE_ENABLE=true
+        // to also send events from local/staging for testing. Events are stamped
+        // with an `environment` property so dev traffic can be filtered out in the
+        // PostHog dashboard.
+        'enabled' => (bool) env('POSTHOG_API_KEY')
+            && (env('APP_ENV') === 'production'
+                || filter_var(env('POSTHOG_FORCE_ENABLE', false), FILTER_VALIDATE_BOOLEAN)),
     ],
 
     'groq' => [

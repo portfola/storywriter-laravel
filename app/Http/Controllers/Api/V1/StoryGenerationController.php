@@ -6,11 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Story;
 use App\Models\StoryPage;
 use App\Services\PromptBuilder;
+use App\Support\Analytics;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use PostHog\PostHog;
 
 class StoryGenerationController extends Controller
 {
@@ -39,17 +39,11 @@ class StoryGenerationController extends Controller
 
         $userId = (string) (auth()->id() ?? 1);
 
-        if (app()->environment('production') && config('services.posthog.api_key')) {
-            PostHog::capture([
-                'distinctId' => $userId,
-                'event' => 'story_generation_requested',
-                'properties' => [
-                    'transcript_length' => strlen($validated['transcript']),
-                    'transcript_word_count' => str_word_count($validated['transcript']),
-                    'user_turns' => substr_count(strtolower($validated['transcript']), 'user:'),
-                ],
-            ]);
-        }
+        Analytics::capture($userId, 'story_generation_requested', [
+            'transcript_length' => strlen($validated['transcript']),
+            'transcript_word_count' => str_word_count($validated['transcript']),
+            'user_turns' => substr_count(strtolower($validated['transcript']), 'user:'),
+        ]);
 
         // Build the prompt
         $prompt = $this->promptBuilder->buildStoryPrompt($validated['transcript']);
@@ -106,16 +100,10 @@ class StoryGenerationController extends Controller
                 'message' => $e->getMessage(),
             ]);
 
-            if (app()->environment('production') && config('services.posthog.api_key')) {
-                PostHog::capture([
-                    'distinctId' => $userId,
-                    'event' => 'story_generation_failed',
-                    'properties' => [
-                        'error_type' => 'timeout',
-                        'elapsed_ms' => $elapsedMs,
-                    ],
-                ]);
-            }
+            Analytics::capture($userId, 'story_generation_failed', [
+                'error_type' => 'timeout',
+                'elapsed_ms' => $elapsedMs,
+            ]);
 
             return response()->json(['error' => 'Story text generation timed out'], 504);
         }
@@ -133,17 +121,11 @@ class StoryGenerationController extends Controller
                 'body' => $textResponse->json(),
             ]);
 
-            if (app()->environment('production') && config('services.posthog.api_key')) {
-                PostHog::capture([
-                    'distinctId' => $userId,
-                    'event' => 'story_generation_failed',
-                    'properties' => [
-                        'error_type' => 'text_generation',
-                        'http_status' => $textResponse->status(),
-                        'generation_time_ms' => round((microtime(true) - $startTime) * 1000),
-                    ],
-                ]);
-            }
+            Analytics::capture($userId, 'story_generation_failed', [
+                'error_type' => 'text_generation',
+                'http_status' => $textResponse->status(),
+                'generation_time_ms' => round((microtime(true) - $startTime) * 1000),
+            ]);
 
             return response()->json(['error' => 'Story text generation failed'], 503);
         }
@@ -238,17 +220,11 @@ class StoryGenerationController extends Controller
             \Log::error('DB SAVE ERROR: '.$e->getMessage());
         }
 
-        if (app()->environment('production') && config('services.posthog.api_key')) {
-            PostHog::capture([
-                'distinctId' => $userId,
-                'event' => 'story_generation_completed',
-                'properties' => [
-                    'generation_time_ms' => round((microtime(true) - $startTime) * 1000),
-                    'story_length' => strlen($storyText),
-                    'has_cover_image' => $imageUrl !== null,
-                ],
-            ]);
-        }
+        Analytics::capture($userId, 'story_generation_completed', [
+            'generation_time_ms' => round((microtime(true) - $startTime) * 1000),
+            'story_length' => strlen($storyText),
+            'has_cover_image' => $imageUrl !== null,
+        ]);
 
         return response()->json([
             'data' => [
