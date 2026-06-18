@@ -100,6 +100,16 @@ return [
                 || filter_var(env('POSTHOG_FORCE_ENABLE', false), FILTER_VALIDATE_BOOLEAN)),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Groq Console API
+    |--------------------------------------------------------------------------
+    |
+    | API key for Groq Console. Used by Heirloom's NarrativeService for
+    | transcript-to-narrative synthesis (llama-3.3-70b-versatile).
+    |
+    */
+
     'groq' => [
         'key' => env('GROQ_API_KEY'),
     ],

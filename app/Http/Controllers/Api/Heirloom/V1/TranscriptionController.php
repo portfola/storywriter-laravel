@@ -39,6 +39,7 @@ class TranscriptionController extends Controller
         return response()->json($transcript, 201);
     }
 
+
     public function storeManual(Request $request, Session $session)
     {
         if ($session->user_id !== $request->user()->id) {
@@ -62,6 +63,7 @@ class TranscriptionController extends Controller
         return response()->json($transcript, 201);
     }
 
+    
     public function show(Request $request, Session $session)
     {
         if ($session->user_id !== $request->user()->id) {

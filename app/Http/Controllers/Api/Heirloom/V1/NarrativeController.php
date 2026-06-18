@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Heirloom\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Heirloom\Narrative;
-use App\Models\Heirloom\Transcript;
+use App\Models\Heirloom\Subject;
 use App\Services\Heirloom\NarrativeService;
 use Illuminate\Http\Request;
 
@@ -14,9 +14,9 @@ class NarrativeController extends Controller
     {
     }
 
-    public function store(Request $request, Transcript $transcript)
+    public function store(Request $request, Subject $subject)
     {
-        if ($transcript->user_id !== $request->user()->id) {
+        if ($subject->user_id !== $request->user()->id) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
@@ -26,12 +26,11 @@ class NarrativeController extends Controller
 
         $format = $request->input('format', 'memoir');
 
-        $narrativeText = $this->narrativeService->synthesise($transcript->transcript_text, $format);
+        $narrativeText = $this->narrativeService->synthesise($subject, $format);
 
         $narrative = Narrative::create([
             'user_id' => $request->user()->id,
-            'session_id' => $transcript->session_id,
-            'transcript_id' => $transcript->id,
+            'subject_id' => $subject->id,
             'narrative_text' => $narrativeText,
             'format' => $format,
             'status' => 'completed',
@@ -39,6 +38,18 @@ class NarrativeController extends Controller
 
         return response()->json($narrative, 201);
     }
+
+
+    public function index()
+    {
+        $narratives = Narrative::where('user_id', auth()->id())
+            ->with(['subject', 'session'])
+            ->latest()
+            ->get();
+
+        return view('heirloom.narratives.index', compact('narratives'));
+    }
+
 
     public function show(Request $request, Narrative $narrative)
     {
@@ -48,6 +59,7 @@ class NarrativeController extends Controller
 
         return response()->json($narrative);
     }
+
 
     public function showByToken(string $token)
     {

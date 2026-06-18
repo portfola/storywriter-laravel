@@ -15,5 +15,6 @@ Route::delete('/sessions/{session}', [SessionController::class, 'destroy'])->nam
 Route::get('/transcripts', [TranscriptController::class, 'index'])->name('transcripts.index');
 Route::get('/transcripts/{transcript}', [TranscriptController::class, 'show'])->name('transcripts.show');
 
+Route::get('/narratives', [NarrativeController::class, 'index'])->name('narratives.index');
 Route::get('/narratives/{narrative}', [NarrativeController::class, 'show'])->name('narratives.show');
 Route::delete('/narratives/{narrative}', [ApiNarrativeController::class, 'destroy'])->name('narratives.destroy');

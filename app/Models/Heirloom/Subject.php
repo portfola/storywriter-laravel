@@ -5,6 +5,7 @@ namespace App\Models\Heirloom;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Heirloom\Narrative;
 
 class Subject extends Model
 {
@@ -31,6 +32,11 @@ class Subject extends Model
     public function sessions()
     {
         return $this->hasMany(Session::class);
+    }
+
+    public function narratives()
+    {
+        return $this->hasMany(Narrative::class);
     }
 
 }

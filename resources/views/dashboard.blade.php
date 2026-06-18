@@ -57,18 +57,23 @@
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thumbnail</th>
+                        <!-- <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th> -->
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach($stories as $story)
+                    <!-- <pre>
+                    {{ print_r($story) }}
+                    </pre> -->
                     <tr>
                         <td class="px-6 py-4">
                         <a href="{{ route('dashboard.story', $story->slug) }}" class="text-blue-600 hover:text-blue-800">
-                            {{ Str::limit($story->name, 50) }}
+                           <img src="{{ Str::limit($story->name, 50) }}">
                         </a>   
+                        <a href="{{ route('dashboard.story', $story->slug) }}" class="text-blue-600 hover:text-blue-800">{{ $story->name }}</a>
                         </td>
                         <td class="px-6 py-4">{{ $story->user->name }}</td>
                         <td class="px-6 py-4">{{ $story->created_at->diffForHumans() }}</td>

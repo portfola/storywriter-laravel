@@ -20,8 +20,8 @@ Route::get('/sessions/{session}/transcript', [TranscriptionController::class, 's
 Route::post('/sessions/{session}/transcript', [TranscriptionController::class, 'storeManual'])
     ->name('sessions.transcript.manual');
 
-Route::post('/transcripts/{transcript}/narratives', [NarrativeController::class, 'store'])
-    ->name('transcripts.narratives.store');
+Route::post('/subjects/{subject}/narratives', [NarrativeController::class, 'store'])
+    ->name('subjects.narratives.store');
     
 Route::get('/narratives/{narrative}', [NarrativeController::class, 'show'])
     ->name('narratives.show');

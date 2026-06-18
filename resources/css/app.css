@@ -1,3 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Styles */
+.px-6 a img {
+    max-width: 15%;
+}
+
+body {
+    background: black;
+}
