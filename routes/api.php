@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     // Public routes
-    Route::get('/health', fn() => response()->json(['status' => 'ok']));
+    Route::get('/health', fn () => response()->json(['status' => 'ok']));
     Route::post('/login', [AuthController::class, 'login']);
     Route::prefix('auth')->group(function () {
         Route::post('/login', LoginController::class);
@@ -20,10 +20,12 @@ Route::prefix('v1')->group(function () {
 
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/user', fn(Request $request) => $request->user());
+        Route::get('/user', fn (Request $request) => $request->user());
         Route::post('/heartbeat', [AuthController::class, 'heartbeat']);
-        Route::post('/stories/generate', [StoryGenerationController::class, 'generate']);
-        Route::post('/stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate']);
+        Route::post('/stories/generate', [StoryGenerationController::class, 'generate'])
+            ->middleware('throttle:ai-generation');
+        Route::post('/stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate'])
+            ->middleware('throttle:ai-generation');
 
         Route::get('/stories/saved', [StoryController::class, 'saved']);
         Route::post('/stories/{story}/save', [StoryController::class, 'save']);
@@ -31,10 +33,14 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('/stories', StoryController::class);
 
         Route::prefix('conversation')->group(function () {
-            Route::post('/sdk-credentials', [ElevenLabsController::class, 'sdkCredentials']);
-            Route::post('/proxy', [ElevenLabsController::class, 'conversationProxy']);
-            Route::post('/tts', [ElevenLabsController::class, 'textToSpeech']);
-            Route::get('/voices', [ElevenLabsController::class, 'voices']);
+            Route::post('/sdk-credentials', [ElevenLabsController::class, 'sdkCredentials'])
+                ->middleware('throttle:conversation-credentials');
+            Route::post('/proxy', [ElevenLabsController::class, 'conversationProxy'])
+                ->middleware('throttle:conversation');
+            Route::post('/tts', [ElevenLabsController::class, 'textToSpeech'])
+                ->middleware('throttle:conversation');
+            Route::get('/voices', [ElevenLabsController::class, 'voices'])
+                ->middleware('throttle:conversation');
         });
     });
 });

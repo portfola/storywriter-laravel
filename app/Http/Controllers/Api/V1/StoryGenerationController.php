@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Story;
 use App\Models\StoryPage;
+use App\Models\TogetherAiUsage;
 use App\Services\PromptBuilder;
 use App\Support\Analytics;
 use Illuminate\Http\Client\ConnectionException;
@@ -38,6 +39,29 @@ class StoryGenerationController extends Controller
         ]);
 
         $userId = (string) (auth()->id() ?? 1);
+
+        // Enforce per-user daily story-generation cap before spending on Together AI.
+        if (TogetherAiUsage::wouldExceedLimit((int) $userId, TogetherAiUsage::SERVICE_STORY)) {
+            $limit = TogetherAiUsage::getDailyLimit(TogetherAiUsage::SERVICE_STORY);
+
+            \Log::warning('User exceeded daily story generation limit', [
+                'user_id' => $userId,
+                'limit' => $limit,
+            ]);
+
+            Analytics::capture($userId, 'story_generation_failed', [
+                'error_type' => 'daily_limit_reached',
+                'limit' => $limit,
+            ]);
+
+            return response()->json([
+                'error' => 'Daily story limit reached. Please try again tomorrow.',
+                'limit_info' => [
+                    'stories_used' => TogetherAiUsage::getTodayCount((int) $userId, TogetherAiUsage::SERVICE_STORY),
+                    'daily_limit' => $limit,
+                ],
+            ], 429);
+        }
 
         Analytics::capture($userId, 'story_generation_requested', [
             'transcript_length' => strlen($validated['transcript']),
@@ -132,6 +156,9 @@ class StoryGenerationController extends Controller
 
         $storyText = $textResponse->json()['choices'][0]['message']['content'] ?? '';
 
+        // Record successful story generation against the user's daily cap.
+        TogetherAiUsage::logUsage((int) $userId, TogetherAiUsage::SERVICE_STORY, config('services.together.text_model'));
+
         \Log::info('Story generated successfully', [
             'length' => strlen($storyText),
         ]);
@@ -150,30 +177,40 @@ class StoryGenerationController extends Controller
             $parsed['pages'][0]['illustrationPrompt']
         );
 
-        try {
-            $imageResponse = Http::connectTimeout(10)
-                ->timeout(60)
-                ->withHeaders([
-                    'Authorization' => 'Bearer '.$apiKey,
-                    'Content-Type' => 'application/json',
-                ])->post('https://api.together.xyz/v1/images/generations', [
-                    'model' => config('services.together.image_model'),
-                    'prompt' => $imagePrompt,
-                    'width' => config('services.together.image_width'),
-                    'height' => config('services.together.image_height'),
-                    'steps' => config('services.together.image_steps'),
-                    'n' => 1,
-                ]);
+        // The cover image is optional, so a reached image cap simply skips it
+        // rather than failing the whole story.
+        if (TogetherAiUsage::wouldExceedLimit((int) $userId, TogetherAiUsage::SERVICE_IMAGE)) {
+            \Log::warning('Skipping cover image — user reached daily image limit', [
+                'user_id' => $userId,
+                'limit' => TogetherAiUsage::getDailyLimit(TogetherAiUsage::SERVICE_IMAGE),
+            ]);
+        } else {
+            try {
+                $imageResponse = Http::connectTimeout(10)
+                    ->timeout(60)
+                    ->withHeaders([
+                        'Authorization' => 'Bearer '.$apiKey,
+                        'Content-Type' => 'application/json',
+                    ])->post('https://api.together.xyz/v1/images/generations', [
+                        'model' => config('services.together.image_model'),
+                        'prompt' => $imagePrompt,
+                        'width' => config('services.together.image_width'),
+                        'height' => config('services.together.image_height'),
+                        'steps' => config('services.together.image_steps'),
+                        'n' => 1,
+                    ]);
 
-            if ($imageResponse->successful()) {
-                $imageUrl = $imageResponse->json()['data'][0]['url'] ?? null;
-            } else {
-                \Log::error('Image Generation Failed', ['body' => $imageResponse->json()]);
+                if ($imageResponse->successful()) {
+                    $imageUrl = $imageResponse->json()['data'][0]['url'] ?? null;
+                    TogetherAiUsage::logUsage((int) $userId, TogetherAiUsage::SERVICE_IMAGE, config('services.together.image_model'));
+                } else {
+                    \Log::error('Image Generation Failed', ['body' => $imageResponse->json()]);
+                }
+
+            } catch (\Exception $e) {
+                \Log::error('Image Generation Exception: '.$e->getMessage());
+                // We don't stop the story if the image fails, we just continue without it.
             }
-
-        } catch (\Exception $e) {
-            \Log::error('Image Generation Exception: '.$e->getMessage());
-            // We don't stop the story if the image fails, we just continue without it.
         }
 
         // Map parsed pages to include pageNumber and imageUrl for response
