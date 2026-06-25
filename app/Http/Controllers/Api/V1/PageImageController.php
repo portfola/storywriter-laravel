@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Story;
+use App\Models\TogetherAiUsage;
 use App\Services\PromptBuilder;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class PageImageController extends Controller
 {
@@ -40,6 +42,25 @@ class PageImageController extends Controller
         $apiKey = config('services.together.api_key');
         if (! $apiKey) {
             return response()->json(['error' => 'TOGETHER_API_KEY is not configured'], 500);
+        }
+
+        // Enforce per-user daily image-generation cap before spending on Together AI.
+        $userId = (int) auth()->id();
+        if (TogetherAiUsage::wouldExceedLimit($userId, TogetherAiUsage::SERVICE_IMAGE)) {
+            $limit = TogetherAiUsage::getDailyLimit(TogetherAiUsage::SERVICE_IMAGE);
+
+            Log::warning('User exceeded daily image generation limit', [
+                'user_id' => $userId,
+                'limit' => $limit,
+            ]);
+
+            return response()->json([
+                'error' => 'Daily image limit reached. Please try again tomorrow.',
+                'limit_info' => [
+                    'images_used' => TogetherAiUsage::getTodayCount($userId, TogetherAiUsage::SERVICE_IMAGE),
+                    'daily_limit' => $limit,
+                ],
+            ], 429);
         }
 
         // Build image prompt from character descriptions + illustration directive
@@ -77,6 +98,9 @@ class PageImageController extends Controller
 
             // Persist the generated image URL
             $page->update(['image_url' => $imageUrl]);
+
+            // Record successful image generation against the user's daily cap.
+            TogetherAiUsage::logUsage($userId, TogetherAiUsage::SERVICE_IMAGE, config('services.together.image_model'));
 
             return response()->json([
                 'data' => ['imageUrl' => $imageUrl],

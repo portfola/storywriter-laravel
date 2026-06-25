@@ -56,6 +56,10 @@ return [
         // Daily usage limits (characters per user per day)
         'daily_limit_free' => env('ELEVENLABS_DAILY_LIMIT_FREE', 10000),
         'daily_limit_paid' => env('ELEVENLABS_DAILY_LIMIT_PAID', 50000),
+
+        // Per-minute request-rate ceilings (see AppServiceProvider rate limiters)
+        'rate_limit_per_minute' => (int) env('ELEVENLABS_RATE_LIMIT_PER_MINUTE', 30),
+        'credentials_rate_limit_per_minute' => (int) env('ELEVENLABS_CREDENTIALS_RATE_LIMIT_PER_MINUTE', 5),
     ],
 
     /*
@@ -75,6 +79,18 @@ return [
         'image_width' => (int) env('TOGETHER_IMAGE_WIDTH', 1024),
         'image_height' => (int) env('TOGETHER_IMAGE_HEIGHT', 768),
         'image_steps' => (int) env('TOGETHER_IMAGE_STEPS', 4),
+
+        // Per-minute request-rate ceiling (see AppServiceProvider rate limiters)
+        'rate_limit_per_minute' => (int) env('TOGETHER_RATE_LIMIT_PER_MINUTE', 10),
+
+        // Daily generation caps per user (free tier). Story text and images are
+        // counted separately since they are distinct cost units.
+        'daily_story_limit_free' => (int) env('TOGETHER_DAILY_STORY_LIMIT_FREE', 25),
+        'daily_image_limit_free' => (int) env('TOGETHER_DAILY_IMAGE_LIMIT_FREE', 75),
+
+        // Rough cost estimates (USD) used only for reporting.
+        'cost_per_story' => (float) env('TOGETHER_COST_PER_STORY', 0.002),
+        'cost_per_image' => (float) env('TOGETHER_COST_PER_IMAGE', 0.003),
     ],
 
     /*
@@ -90,7 +106,25 @@ return [
     'posthog' => [
         'api_key' => env('POSTHOG_API_KEY'),
         'host' => env('POSTHOG_HOST', 'https://us.i.posthog.com'),
+
+        // Analytics is on in production automatically. Set POSTHOG_FORCE_ENABLE=true
+        // to also send events from local/staging for testing. Events are stamped
+        // with an `environment` property so dev traffic can be filtered out in the
+        // PostHog dashboard.
+        'enabled' => (bool) env('POSTHOG_API_KEY')
+            && (env('APP_ENV') === 'production'
+                || filter_var(env('POSTHOG_FORCE_ENABLE', false), FILTER_VALIDATE_BOOLEAN)),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Groq Console API
+    |--------------------------------------------------------------------------
+    |
+    | API key for Groq Console. Used by Heirloom's NarrativeService for
+    | transcript-to-narrative synthesis (llama-3.3-70b-versatile).
+    |
+    */
 
     'groq' => [
         'key' => env('GROQ_API_KEY'),

@@ -13,7 +13,7 @@ class TranscriptionService
 
     public function __construct(HttpClient $http)
     {
-        $this->apiKey = config('services.groq.key');
+        $this->apiKey = config('services.groq.key') ?? '';
         $this->http = $http;
     }
 

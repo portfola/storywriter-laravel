@@ -12,7 +12,9 @@
                     
                     {{-- Header Section --}}
                     <div class="mb-6 border-b pb-4">
-                        <h1 class="text-3xl font-bold mb-2">{{ $story->name }}</h1>
+                        <h1 class="text-3xl font-bold mb-2">
+                           <img src="{{ $story->name }}" />
+                        </h1>
                         <div class="flex items-center text-sm text-gray-500 space-x-4">
                             <span>👤 {{ $story->user->name }}</span>
                             <span>📅 {{ $story->created_at->format('F j, Y, g:i a') }}</span>
