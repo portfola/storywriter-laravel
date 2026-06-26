@@ -40,7 +40,7 @@ Routes are versioned under `/api/v1/` (stories) and `/api/heirloom/v1/` (heirloo
 
 ### Story Generation Pipeline
 
-`StoryGenerationController` orchestrates: validate → PostHog tracking → `PromptBuilder::buildStoryPrompt()` → Together AI (text, DeepSeek-V3.1) → `PromptBuilder::parseStoryOutput()` → `PromptBuilder::buildImagePrompt()` → Together AI (image, FLUX.1-schnell) → persist `Story` + `StoryPage` records → return structured response.
+`StoryGenerationController` orchestrates: validate → PostHog tracking → `PromptBuilder::buildStoryPrompt()` → Together AI (text) → `PromptBuilder::parseStoryOutput()` → `PromptBuilder::buildImagePrompt()` → Together AI (image) → persist `Story` + `StoryPage` records → return structured response. Text and image models (and image dimensions/steps) are selected via environment params — see `config/services.php` — not hardcoded here.
 
 The LLM output format is defined in `config/prompts.php`: title line, `[CHARACTERS]` block, pages separated by `---PAGE BREAK---`, `[ILLUSTRATION: ...]` directives per page.
 
@@ -48,7 +48,7 @@ The LLM output format is defined in `config/prompts.php`: title line, `[CHARACTE
 
 - `app/Services/PromptBuilder.php` — Builds and parses LLM prompts for story generation
 - `app/Services/StoryAnalyticsService.php` — Dashboard analytics with DB-agnostic JSON extraction (SQLite/PostgreSQL/MySQL)
-- `app/Services/Heirloom/NarrativeService.php` — Synthesises interview transcripts into narratives via Together AI; supports `memoir`, `letter`, and `timeline` formats
+- `app/Services/Heirloom/NarrativeService.php` — Synthesises interview transcripts into narratives via Groq; supports `memoir`, `letter`, and `timeline` formats
 - `app/Services/Heirloom/TranscriptionService.php` — Audio-to-text transcription
 
 ### External Integrations
@@ -57,8 +57,9 @@ All third-party config lives in `config/services.php`:
 
 | Service | Purpose | Key config |
 |---|---|---|
-| Together AI | Text + image generation | `TOGETHER_API_KEY`; text model DeepSeek-V3.1, image model FLUX.1-schnell |
-| ElevenLabs | TTS, conversation AI | `ELEVENLABS_API_KEY`; daily limits tracked in `ElevenLabsUsage` model |
+| Together AI | Text + image generation | `TOGETHER_API_KEY`; models via `TOGETHER_TEXT_MODEL` / `TOGETHER_IMAGE_MODEL` (image size/steps via `TOGETHER_IMAGE_WIDTH`/`_HEIGHT`/`_STEPS`) |
+| ElevenLabs | TTS, conversation AI | `ELEVENLABS_API_KEY`; default model via `ELEVENLABS_DEFAULT_MODEL`; daily limits tracked in `ElevenLabsUsage` model |
+| Groq | Heirloom narrative synthesis | `GROQ_API_KEY` |
 | PostHog | Analytics/event tracking | `POSTHOG_API_KEY`; events on login, story generation start/success/failure |
 | AWS SSM | Secrets (staging/prod only) | `AWS_SSM_ENABLED=true`; path pattern `/storywriter/{environment}/{KEY}` |
 
