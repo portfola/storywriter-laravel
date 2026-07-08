@@ -28,13 +28,22 @@ class NarrativeController extends Controller
 
         $narrativeText = $this->narrativeService->synthesise($subject, $format);
 
-        $narrative = Narrative::create([
-            'user_id' => $request->user()->id,
-            'subject_id' => $subject->id,
-            'narrative_text' => $narrativeText,
-            'format' => $format,
-            'status' => 'completed',
-        ]);
+        // $narrative = Narrative::create([
+        //     'user_id' => $request->user()->id,
+        //     'subject_id' => $subject->id,
+        //     'narrative_text' => $narrativeText,
+        //     'format' => $format,
+        //     'status' => 'completed',
+        // ]);
+
+        $narrative = Narrative::updateOrCreate(
+            ['subject_id' => $subject->id, 'format' => $format],
+            [
+                'user_id' => $request->user()->id,
+                'narrative_text' => $narrativeText,
+                'status' => 'completed',
+            ]
+        );
 
         return response()->json($narrative, 201);
     }
@@ -73,14 +82,24 @@ class NarrativeController extends Controller
             abort(403);
         }
 
-        $sessionId = $narrative->session_id;
+        // $sessionId = $narrative->session_id;
+        // $narrative->delete();
+
+        // if ($request->expectsJson()) {
+        //     return response()->json(null, 204);
+        // }
+
+        // return redirect()->route('heirloom.sessions.show', $sessionId)
+        //     ->with('status', 'Narrative deleted.');
+
+        //$subjectId = $narrative->subject_id;
         $narrative->delete();
 
         if ($request->expectsJson()) {
             return response()->json(null, 204);
         }
 
-        return redirect()->route('heirloom.sessions.show', $sessionId)
+        return redirect()->route('heirloom.subjects.show', $subjectId)
             ->with('status', 'Narrative deleted.');
     }
 }
