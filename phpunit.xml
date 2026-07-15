@@ -32,5 +32,9 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="POSTHOG_FORCE_ENABLE" value="false"/>
+        <env name="ELEVENLABS_API_KEY" value="test-key"/>
+        <env name="ELEVENLABS_AGENT_ID" value="test-agent-id"/>
+        <env name="TOGETHER_API_KEY" value="test-key"/>
+        <env name="GROQ_API_KEY" value="test-key"/>
     </php>
 </phpunit>
