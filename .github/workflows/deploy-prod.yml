@@ -1,11 +1,15 @@
 name: Deploy to Production
 
+# Production deploys only from semver tags (v*) or a manual dispatch; merges
+# to main deploy staging via deploy-staging.yml.
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
   workflow_dispatch:
 
+# One production deploy at a time: queued runs wait instead of racing a deploy
+# already in flight (never cancel a deploy mid-run).
 concurrency:
   group: prod-deployment
   cancel-in-progress: false
@@ -272,7 +276,7 @@ jobs:
         run: |
           echo "::notice::🚀 Deployment to production successful!"
           echo "::notice::Commit: ${{ github.sha }}"
-          echo "::notice::Branch: ${{ github.ref_name }}"
+          echo "::notice::Ref: ${{ github.ref_name }}"
           echo "::notice::Deployed by: ${{ github.actor }}"
 
       - name: Notify on failure
