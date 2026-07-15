@@ -1,11 +1,11 @@
 name: Deploy to Production
 
-# Production deploys only from semver tags (v*) or a manual dispatch; merges
-# to main deploy staging via deploy-staging.yml.
+# Production deploys only from semver tags (v*) or a manual dispatch on a
+# tag; merges to main deploy staging via deploy-staging.yml.
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'
   workflow_dispatch:
 
 # One production deploy at a time: queued runs wait instead of racing a deploy
@@ -24,6 +24,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # The manual-dispatch ref picker defaults to main; deploying an untagged
+      # branch to production is never intended, so fail fast unless a release
+      # tag was picked.
+      - name: Require a release tag
+        if: github.event_name == 'workflow_dispatch' && github.ref_type != 'tag'
+        run: |
+          echo "::error::Production deploys only run from v* release tags. Re-run the workflow and pick a release tag in the ref dropdown (it defaults to main)."
+          exit 1
+
       - name: Checkout code
         uses: actions/checkout@v4
 

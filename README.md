@@ -81,6 +81,14 @@ The production GitHub environment has a required-reviewer rule, so every
 production deploy — including tag pushes — pauses at an approval button in the
 Actions UI. Staging deploys run unattended.
 
+The test suite also runs in CI on every PR and push to `main`
+([`tests.yml`](.github/workflows/tests.yml)) — only tag commits with a green
+run.
+
+> **Manual-dispatch footgun:** the *Run workflow* ref picker defaults to
+> `main`. The production workflow refuses to run on a branch ref (it fails
+> fast with an error), so always pick a `v*` release tag in the dropdown.
+
 Unlike the frontend, this repo has no version fields to keep in sync — the
 `vX.Y.Z` git tag **is** the version. Tags follow semver and are shared with
 the frontend's numbering only in spirit; the two repos version independently.
@@ -137,11 +145,18 @@ Two options, depending on how fast you need to be:
 
 - **Fast path — restore the on-server backup.** Every deploy first copies the
   current release to `/var/www/releases/backup_<timestamp>/` on the server
-  (last 5 kept). SSH in as `deploy`, copy the backup back over
-  `/var/www/storywriter-prod`, then re-run the cache rebuild and restart
-  PHP-FPM (`php artisan config:cache route:cache view:cache`, `sudo systemctl
-  restart php8.4-fpm`). No rebuild, so it's fast — but follow up with a proper
-  patch release.
+  (last 5 kept). SSH in as `deploy` and restore it (`--delete` removes any
+  files the bad release added), then rebuild the caches and restart PHP-FPM:
+
+  ```bash
+  rsync -a --delete /var/www/releases/backup_<timestamp>/ /var/www/storywriter-prod/
+  cd /var/www/storywriter-prod
+  php artisan optimize:clear
+  php artisan config:cache && php artisan route:cache && php artisan view:cache
+  sudo systemctl restart php8.4-fpm
+  ```
+
+  No rebuild, so it's fast — but follow up with a proper patch release.
 
 **Migrations caveat:** neither path undoes database migrations — the bad
 release's migrations have already run against the production database. Keep
