@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Auth\AuthController;
 use App\Http\Controllers\Api\Auth\LoginController;
+use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\Heirloom\V1\NarrativeController;
 use App\Http\Controllers\Api\V1\ElevenLabsController;
 use App\Http\Controllers\Api\V1\PageImageController;
@@ -16,6 +17,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::prefix('auth')->group(function () {
         Route::post('/login', LoginController::class);
+        Route::post('/register', RegisterController::class);
     });
 
     // Protected routes
