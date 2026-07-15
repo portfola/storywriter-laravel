@@ -24,6 +24,12 @@ php artisan test --filter TestClassName
 ./vendor/bin/pint --test
 ```
 
+## Releases
+
+Merges to `main` deploy staging; `v*` tags deploy production behind a manual
+approval gate. The git tag is the version (no version fields in this repo).
+Full release/hotfix/rollback runbook: `README.md` → "Releases & deployment".
+
 ## Architecture
 
 **StoryWriter** is a dual-purpose Laravel 12 application:
