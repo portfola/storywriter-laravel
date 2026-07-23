@@ -74,7 +74,7 @@ Deploys are driven by two workflows:
 | Trigger | Workflow | Environment |
 |---|---|---|
 | Merge/push to `main` | [`deploy-staging.yml`](.github/workflows/deploy-staging.yml) | **staging** (unattended) |
-| Push a `v*` tag | [`deploy-prod.yml`](.github/workflows/deploy-prod.yml) | **production** (waits for manual approval) |
+| Push a `vX.Y.Z` tag | [`deploy-prod.yml`](.github/workflows/deploy-prod.yml) | **production** (waits for manual approval) |
 | Manual `workflow_dispatch` | either workflow | that workflow's environment |
 
 The production GitHub environment has a required-reviewer rule, so every
@@ -85,9 +85,21 @@ The test suite also runs in CI on every PR and push to `main`
 ([`tests.yml`](.github/workflows/tests.yml)) — only tag commits with a green
 run.
 
-> **Manual-dispatch footgun:** the *Run workflow* ref picker defaults to
-> `main`. The production workflow refuses to run on a branch ref (it fails
-> fast with an error), so always pick a `v*` release tag in the dropdown.
+**Nothing reaches production except from a release tag.** Three things enforce
+that, and it's worth knowing all three, because hitting one of them looks like
+a different failure each time:
+
+- The push trigger only matches semver-shaped tags (`v[0-9]*.[0-9]*.[0-9]*`),
+  so a stray tag like `v9` or `v2-broken` simply doesn't start a run.
+- The *Run workflow* ref picker defaults to `main`, so the production workflow
+  fails fast on its **Require a release tag** step unless you pick a `v*` tag
+  in the ref dropdown. A branch is refused, and so is a non-release tag like
+  `baseline`.
+- The `production` GitHub environment restricts deployments to tags matching
+  `v*.*.*`, which holds even if someone edits the workflow. A run that trips
+  this one is rejected at the environment gate rather than by a workflow step.
+
+Staging is deliberately unrestricted — dispatch it from any branch you like.
 
 Unlike the frontend, this repo has no version fields to keep in sync — the
 `vX.Y.Z` git tag **is** the version. Tags follow semver and are shared with
