@@ -5,7 +5,10 @@ name: Deploy to Production
 on:
   push:
     tags:
-      - 'v[0-9]*'
+      # Semver-shaped release tags only, matching the frontend. A glob is the
+      # closest GitHub gets to validating semver, so `v1.2.3-rc1` still
+      # matches — but `v9`, `v2-broken` and friends no longer deploy.
+      - 'v[0-9]*.[0-9]*.[0-9]*'
   workflow_dispatch:
 
 # One production deploy at a time: queued runs wait instead of racing a deploy
@@ -26,9 +29,12 @@ jobs:
     steps:
       # The manual-dispatch ref picker defaults to main; deploying an untagged
       # branch to production is never intended, so fail fast unless a release
-      # tag was picked.
+      # tag was picked. Checking the `v` prefix too, since any tag at all —
+      # `baseline`, `snapshot-2026` — would otherwise pass.
       - name: Require a release tag
-        if: github.event_name == 'workflow_dispatch' && github.ref_type != 'tag'
+        if: >-
+          github.event_name == 'workflow_dispatch'
+          && !(github.ref_type == 'tag' && startsWith(github.ref_name, 'v'))
         run: |
           echo "::error::Production deploys only run from v* release tags. Re-run the workflow and pick a release tag in the ref dropdown (it defaults to main)."
           exit 1
