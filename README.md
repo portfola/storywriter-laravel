@@ -75,6 +75,38 @@ predates this and still says `local`, change it by hand; copying
 `.env.example` again won't touch a file you already have. Run
 `php artisan storage:link` once so `public/storage` exists.
 
+### App content storage (staging/production)
+
+Story illustrations and narration audio are copied out of Together AI and
+ElevenLabs and kept in an S3 bucket, one per environment, defined in
+`terraform/modules/storywriter-server/s3.tf`. Terraform names it
+`{app_name}-content` — so `storywriter-staging-content` and
+`storywriter-prod-content` — and the bucket name is also a stack output
+(`app_content_bucket`).
+
+The bucket is private and stays private. Object keys look like
+`stories/{storyId}/pages/{n}/image.png`, which anyone could walk by counting
+upwards, and it's children's content, so it is never served straight off S3.
+The app hands out a time-limited signed URL instead.
+
+Nothing needs AWS access keys. The EC2 instance profile already grants the app
+read/write on its own bucket, and Laravel's `s3` disk falls through to those
+credentials when `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are unset. Once
+the bucket exists, a deployed environment only needs:
+
+```env
+FILESYSTEM_DISK=s3
+AWS_BUCKET=storywriter-staging-content   # terraform output app_content_bucket
+AWS_DEFAULT_REGION=us-east-1
+```
+
+None of those are secrets, so they belong in the deploy workflow's `.env` block
+rather than SSM Parameter Store.
+
+The bucket carries `prevent_destroy = true`, because the only way to recreate
+its contents is to pay Together AI and ElevenLabs for them again. `terraform
+destroy` will refuse until someone removes that block on purpose.
+
 ## Releases & deployment
 
 Deploys are driven by two workflows:

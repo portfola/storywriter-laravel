@@ -85,3 +85,15 @@ variable "github_actions_public_key" {
   description = "Public SSH key for deploy user. Used by GitHub Actions and manual SSH. Corresponds to GitHub Secret: SSH_PRIVATE_KEY"
   type        = string
 }
+
+variable "app_content_bucket_name" {
+  description = "Name of the S3 bucket holding story images and narration audio. Defaults to {app_name}-content. Set this only if that name is already taken -- S3 bucket names are globally unique."
+  type        = string
+  default     = ""
+}
+
+variable "app_content_cors_allowed_origins" {
+  description = "Origins allowed to read app content from the bucket via fetch()/XHR. Only affects browsers; the signed URL is what actually controls access."
+  type        = list(string)
+  default     = ["*"]
+}

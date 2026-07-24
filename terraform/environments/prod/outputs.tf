@@ -40,3 +40,18 @@ output "iam_instance_profile" {
   description = "Name of the IAM instance profile"
   value       = module.storywriter_server.iam_instance_profile
 }
+
+output "app_content_bucket" {
+  description = "Name of the S3 bucket for story images and narration audio (AWS_BUCKET in the app's .env)"
+  value       = module.storywriter_server.app_content_bucket
+}
+
+output "app_content_bucket_arn" {
+  description = "ARN of the app content bucket"
+  value       = module.storywriter_server.app_content_bucket_arn
+}
+
+output "app_content_bucket_regional_domain_name" {
+  description = "Regional domain name of the app content bucket"
+  value       = module.storywriter_server.app_content_bucket_regional_domain_name
+}

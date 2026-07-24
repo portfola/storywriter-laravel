@@ -39,3 +39,18 @@ output "iam_instance_profile" {
   description = "Name of the IAM instance profile"
   value       = aws_iam_instance_profile.ec2_profile.name
 }
+
+output "app_content_bucket" {
+  description = "Name of the S3 bucket for story images and narration audio. This is the value for AWS_BUCKET in the app's .env."
+  value       = aws_s3_bucket.app_content.id
+}
+
+output "app_content_bucket_arn" {
+  description = "ARN of the app content bucket"
+  value       = aws_s3_bucket.app_content.arn
+}
+
+output "app_content_bucket_regional_domain_name" {
+  description = "Regional domain name of the app content bucket"
+  value       = aws_s3_bucket.app_content.bucket_regional_domain_name
+}
