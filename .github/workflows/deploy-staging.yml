@@ -201,7 +201,7 @@ jobs:
           SESSION_DOMAIN=null
 
           BROADCAST_CONNECTION=log
-          FILESYSTEM_DISK=local
+          FILESYSTEM_DISK=public
           QUEUE_CONNECTION=database
 
           CACHE_STORE=database
@@ -225,6 +225,9 @@ jobs:
           sudo chown -R deploy:www-data $APP_DIR
           sudo chmod -R 775 $APP_DIR/storage
           sudo chmod -R 775 $APP_DIR/bootstrap/cache
+
+          echo "==> Linking public storage..."
+          php artisan storage:link --force
 
           echo "==> Running database migrations..."
           php artisan migrate --force
