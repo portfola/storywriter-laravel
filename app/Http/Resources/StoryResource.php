@@ -29,6 +29,7 @@ class StoryResource extends JsonResource
                 'content' => $p->content,
                 'illustrationPrompt' => $p->illustration_prompt,
                 'imageUrl' => $p->image_url,
+                'audioUrl' => $p->audio_url,
             ])),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
