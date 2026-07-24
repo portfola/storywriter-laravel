@@ -23,6 +23,8 @@ return [
         'https://staging.storywriter.net',      // Staging frontend
         'https://storywriter.net',               // Production frontend
         'https://www.storywriter.net',           // Production www subdomain
+        'https://heirloom-staging.storywriter.net', // Staging Heirloom
+        'https://heirloom.storywriter.net',      // Production Heirloom
         'http://localhost:3000',                 // Local web development
         'http://localhost:8081',                 // Expo development
         'http://localhost:19006',                // Expo web
