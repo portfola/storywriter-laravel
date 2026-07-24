@@ -5,9 +5,10 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Models\User;
-use Illuminate\Http\Request;
+use App\Support\Analytics;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
@@ -17,11 +18,10 @@ class LoginController extends Controller
      */
     public function __invoke(LoginRequest $request)
     {
-        $user = User::where('email', $request->email)->first();
+        // Matched case-insensitively: emails are stored lowercased at
+        // registration, but older accounts may be stored with mixed case.
+        $user = User::whereRaw('LOWER(email) = ?', [Str::lower((string) $request->email)])->first();
 
-        /**
-         * Handle the incoming request.
-         */
         if (! $user || ! Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The credentials you provided are incorrect.'],
@@ -29,6 +29,8 @@ class LoginController extends Controller
         }
 
         $token = $user->createToken('laravel_api_token')->plainTextToken;
+
+        Analytics::capture((string) $user->id, 'login_completed');
 
         return response()->json([
             'token' => $token,

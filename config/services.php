@@ -64,6 +64,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Authentication
+    |--------------------------------------------------------------------------
+    |
+    | Per-IP request-rate ceiling on registration and login (see the 'auth'
+    | limiter in AppServiceProvider), so password guessing and signup spam
+    | cost something.
+    |
+    */
+
+    'auth' => [
+        'rate_limit_per_minute' => (int) env('AUTH_RATE_LIMIT_PER_MINUTE', 10),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Together AI
     |--------------------------------------------------------------------------
     |

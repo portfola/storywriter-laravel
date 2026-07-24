@@ -72,6 +72,35 @@ class RegisterTest extends TestCase
         $response->assertJsonValidationErrors(['email']);
     }
 
+    public function test_registration_stores_the_email_lowercased(): void
+    {
+        $this->postJson('/api/v1/auth/register', [
+            'name' => 'Ada Lovelace',
+            'email' => 'Ada@Example.COM',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'terms_accepted' => true,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('users', ['email' => 'ada@example.com']);
+    }
+
+    public function test_registration_rejects_a_duplicate_email_in_a_different_case(): void
+    {
+        User::factory()->create(['email' => 'Ada@Example.com']);
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'terms_accepted' => true,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['email']);
+    }
+
     public function test_new_user_can_log_in_after_registering(): void
     {
         $this->postJson('/api/v1/auth/register', [
