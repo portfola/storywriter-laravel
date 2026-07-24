@@ -7,19 +7,32 @@ use App\Models\StoryPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PageImageTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Point media storage at a throwaway disk so tests never write real files.
+     */
+    private function fakeMediaDisk(): void
+    {
+        config(['filesystems.default' => 'public']);
+        Storage::fake('public');
+    }
+
     /** @test */
     public function it_generates_image_for_page_with_illustration_prompt_but_no_image_url()
     {
+        $this->fakeMediaDisk();
+
         Http::fake([
             'api.together.xyz/*' => Http::response([
                 'data' => [['url' => 'https://example.com/generated-image.png']],
             ]),
+            'example.com/*' => Http::response('fake-png-bytes'),
         ]);
 
         $user = User::factory()->create();
@@ -37,8 +50,14 @@ class PageImageTest extends TestCase
         $response = $this->actingAs($user)
             ->postJson("/api/v1/stories/{$story->id}/pages/2/image");
 
-        $response->assertOk()
-            ->assertJsonPath('data.imageUrl', 'https://example.com/generated-image.png');
+        // The response points at our stored copy, not Together's expiring URL.
+        $storedPath = "stories/{$story->id}/pages/2/image.png";
+
+        $response->assertOk();
+        $this->assertStringContainsString($storedPath, $response->json('data.imageUrl'));
+        $this->assertStringNotContainsString('generated-image.png', $response->json('data.imageUrl'));
+
+        Storage::disk('public')->assertExists($storedPath);
 
         Http::assertSent(function ($request) {
             return str_contains($request->url(), 'api.together.xyz/v1/images/generations');
@@ -84,14 +103,17 @@ class PageImageTest extends TestCase
     }
 
     /** @test */
-    public function it_persists_image_url_to_database_after_generation()
+    public function it_persists_stored_image_url_to_database_after_generation()
     {
+        $this->fakeMediaDisk();
+
         $imageUrl = 'https://example.com/persisted-image.png';
 
         Http::fake([
             'api.together.xyz/*' => Http::response([
                 'data' => [['url' => $imageUrl]],
             ]),
+            'example.com/*' => Http::response('fake-png-bytes'),
         ]);
 
         $user = User::factory()->create();
@@ -110,10 +132,14 @@ class PageImageTest extends TestCase
             ->postJson("/api/v1/stories/{$story->id}/pages/3/image")
             ->assertOk();
 
-        $this->assertDatabaseHas('story_pages', [
-            'id' => $page->id,
-            'image_url' => $imageUrl,
-        ]);
+        // What lands in the DB is our stored copy, so the illustration survives
+        // Together's URL expiring.
+        $page->refresh();
+
+        $this->assertStringContainsString("stories/{$story->id}/pages/3/image.png", $page->image_url);
+        $this->assertStringNotContainsString('persisted-image.png', $page->image_url);
+
+        Storage::disk('public')->assertExists("stories/{$story->id}/pages/3/image.png");
     }
 
     /** @test */
