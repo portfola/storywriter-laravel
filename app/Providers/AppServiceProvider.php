@@ -54,6 +54,14 @@ class AppServiceProvider extends ServiceProvider
      */
     protected function configureRateLimiters(): void
     {
+        // Registration and login. Nobody is authenticated yet here, so these key
+        // on IP: the point is to make password guessing and signup spam
+        // expensive, not to limit any one legitimate person.
+        RateLimiter::for('auth', function (Request $request) {
+            return Limit::perMinute((int) config('services.auth.rate_limit_per_minute', 10))
+                ->by($request->ip());
+        });
+
         // Story + page image generation (Together AI). Generation is heavy and
         // slow, so the per-minute ceiling is deliberately low.
         RateLimiter::for('ai-generation', function (Request $request) {

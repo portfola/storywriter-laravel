@@ -38,7 +38,9 @@ Full release/hotfix/rollback runbook: `README.md` → "Releases & deployment".
 
 ### API Structure
 
-Routes are versioned under `/api/v1/` (stories) and `/api/heirloom/v1/` (heirloom). Authentication uses Laravel Sanctum (token-based). The login endpoint (`POST /api/auth/login`) creates a user if one doesn't exist — email is the only required field.
+Routes are versioned under `/api/v1/` (stories) and `/api/heirloom/v1/` (heirloom). Authentication uses Laravel Sanctum (token-based).
+
+Both StoryWriter and Heirloom share one `users` table and one pair of auth endpoints, `POST /api/v1/auth/register` and `POST /api/v1/auth/login`, both rate-limited per IP by the `auth` limiter. Login requires a real password (`Hash::check`); emails are stored lowercased and matched case-insensitively. Sanctum tokens are issued without ability scoping, so a token from either app is currently accepted by both apps' routes.
 
 - `routes/api.php` — Core story/auth/ElevenLabs API routes
 - `routes/heirloom_v1.php` — Heirloom API routes

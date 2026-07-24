@@ -14,10 +14,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Public routes
     Route::get('/health', fn () => response()->json(['status' => 'ok']));
-    // Passwordless sign-up-or-sign-in used by the StoryWriter app (AuthContext).
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::prefix('auth')->group(function () {
-        // Credentialed login (Hash::check) used by Heirloom's login page.
+    Route::prefix('auth')->middleware('throttle:auth')->group(function () {
+        // Credentialed login (Hash::check), shared by the StoryWriter app and
+        // Heirloom's login page.
         Route::post('/login', LoginController::class);
         Route::post('/register', RegisterController::class);
     });
