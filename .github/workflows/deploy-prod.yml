@@ -224,7 +224,12 @@ jobs:
           SESSION_DOMAIN=null
 
           BROADCAST_CONNECTION=log
-          FILESYSTEM_DISK=public
+          # Story images and narration audio go to this environment's own bucket
+          # (terraform output app_content_bucket). No access keys on purpose --
+          # the instance profile already grants read/write, and the s3 disk falls
+          # through to it when AWS_ACCESS_KEY_ID/SECRET are unset.
+          FILESYSTEM_DISK=s3
+          AWS_BUCKET=${{ vars.AWS_BUCKET || 'storywriter-prod-content' }}
           QUEUE_CONNECTION=database
 
           CACHE_STORE=database
