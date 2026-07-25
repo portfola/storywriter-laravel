@@ -65,7 +65,15 @@ Copy `.env.example` to `.env` and add your API keys:
 DB_CONNECTION=sqlite
 TOGETHER_API_KEY=your_key_here
 ELEVENLABS_API_KEY=your_key_here
+FILESYSTEM_DISK=public
 ```
+
+`FILESYSTEM_DISK` is where generated story images and narration audio are
+written. It must be `public`, not the old `local` default — the `local` disk is
+private, so images written there come back 403/404 in the app. If your `.env`
+predates this and still says `local`, change it by hand; copying
+`.env.example` again won't touch a file you already have. Run
+`php artisan storage:link` once so `public/storage` exists.
 
 ## Releases & deployment
 

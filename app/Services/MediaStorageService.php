@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -40,7 +41,17 @@ class MediaStorageService
      */
     public function storeFromUrl(string $sourceUrl, string $path): string
     {
-        $response = Http::connectTimeout(10)->timeout(60)->get($sourceUrl);
+        try {
+            $response = Http::connectTimeout(10)->timeout(60)->get($sourceUrl);
+        } catch (ConnectionException $e) {
+            // A hung or unreachable provider CDN is the likeliest failure here, and
+            // it arrives as ConnectionException, which is not a RuntimeException.
+            // Callers get one exception type to catch either way.
+            throw new RuntimeException(
+                "Failed to download media from {$sourceUrl}: {$e->getMessage()}",
+                previous: $e
+            );
+        }
 
         if (! $response->successful()) {
             throw new RuntimeException(
@@ -80,9 +91,10 @@ class MediaStorageService
     /**
      * URL for an already-stored file.
      *
-     * Local disks return a root-relative path ("/storage/..."), which the tablet
-     * app can't load, so those get the app URL prepended. S3 already returns an
-     * absolute URL and is left alone.
+     * Both configured disks already return an absolute URL: the public disk is
+     * configured with APP_URL as its base, and S3 returns the bucket URL. The
+     * app URL is only prepended as a backstop, for a disk whose "url" is unset
+     * or a blank APP_URL — the tablet app can't load a root-relative path.
      */
     public function url(string $path): string
     {
