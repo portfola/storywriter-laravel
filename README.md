@@ -169,7 +169,8 @@ Two options, depending on how fast you need to be:
   files the bad release added), then rebuild the caches and restart PHP-FPM:
 
   ```bash
-  rsync -a --delete /var/www/releases/backup_<timestamp>/ /var/www/storywriter-prod/
+  rsync -a --delete --exclude='storage/app/public/' \
+    /var/www/releases/backup_<timestamp>/ /var/www/storywriter-prod/
   cd /var/www/storywriter-prod
   php artisan optimize:clear
   php artisan config:cache && php artisan route:cache && php artisan view:cache
@@ -177,6 +178,10 @@ Two options, depending on how fast you need to be:
   ```
 
   No rebuild, so it's fast — but follow up with a proper patch release.
+
+  The `--exclude` matters: backups don't contain `storage/app/public` (that's
+  generated story images and audio, not code), so without it `--delete` would
+  wipe every stored image and leave saved storybooks blank.
 
 **Migrations caveat:** neither path undoes database migrations — the bad
 release's migrations have already run against the production database. Keep
