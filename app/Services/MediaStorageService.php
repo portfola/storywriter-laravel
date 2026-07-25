@@ -81,6 +81,22 @@ class MediaStorageService
     }
 
     /**
+     * Whether a file is already stored at $path.
+     */
+    public function exists(string $path): bool
+    {
+        return Storage::disk($this->disk())->exists($path);
+    }
+
+    /**
+     * Raw bytes of an already-stored file, or null if it isn't there.
+     */
+    public function get(string $path): ?string
+    {
+        return Storage::disk($this->disk())->get($path);
+    }
+
+    /**
      * The disk media is written to.
      */
     public function disk(): string

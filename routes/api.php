@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Auth\LoginController;
 use App\Http\Controllers\Api\Auth\RegisterController;
 use App\Http\Controllers\Api\Heirloom\V1\NarrativeController;
 use App\Http\Controllers\Api\V1\ElevenLabsController;
+use App\Http\Controllers\Api\V1\PageAudioController;
 use App\Http\Controllers\Api\V1\PageImageController;
 use App\Http\Controllers\Api\V1\StoryController;
 use App\Http\Controllers\Api\V1\StoryGenerationController;
@@ -28,6 +29,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/stories/generate', [StoryGenerationController::class, 'generate'])
             ->middleware('throttle:ai-generation');
         Route::post('/stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate'])
+            ->middleware('throttle:ai-generation');
+        Route::post('/stories/{story:id}/pages/{pageNumber}/audio', [PageAudioController::class, 'generate'])
             ->middleware('throttle:ai-generation');
 
         Route::get('/stories/saved', [StoryController::class, 'saved']);
