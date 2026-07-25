@@ -7,11 +7,21 @@ use App\Models\StoryPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StoryGenerationWithImageTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Point media storage at a throwaway disk so tests never write real files.
+     */
+    private function fakeMediaDisk(): void
+    {
+        config(['filesystems.default' => 'public']);
+        Storage::fake('public');
+    }
 
     /**
      * Build a mock LLM response with the structured format including
@@ -56,6 +66,7 @@ STORY;
     {
         $user = User::factory()->create();
         $this->actingAs($user);
+        $this->fakeMediaDisk();
 
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
@@ -72,6 +83,7 @@ STORY;
                     ['url' => 'https://api.together.ai/test-image-12345.jpg'],
                 ],
             ], 200),
+            'api.together.ai/*' => Http::response('fake-jpg-bytes'),
         ]);
 
         $response = $this->postJson('/api/v1/stories/generate', [
@@ -92,9 +104,14 @@ STORY;
         $this->assertStringContainsString('Ember', $story->characters_description);
         $this->assertStringContainsString('Mia', $story->characters_description);
 
-        // Body SHOULD contain the image markdown at the top
+        // Body SHOULD contain the image markdown at the top, pointing at our own
+        // stored copy rather than Together's URL, which expires after a few hours.
+        $storedPath = "stories/{$story->id}/pages/1/image.png";
+
         $this->assertStringStartsWith('![](', $story->body);
-        $this->assertStringContainsString('https://api.together.ai/test-image-12345.jpg', $story->body);
+        $this->assertStringContainsString($storedPath, $story->body);
+        $this->assertStringNotContainsString('api.together.ai', $story->body);
+        Storage::disk('public')->assertExists($storedPath);
 
         // Body should also contain the actual story text
         $this->assertStringContainsString("The Dragon's Library", $story->body);
@@ -103,8 +120,57 @@ STORY;
         // Structured pages should exist
         $pages = StoryPage::where('story_id', $story->id)->orderBy('page_number')->get();
         $this->assertCount(2, $pages);
-        $this->assertEquals('https://api.together.ai/test-image-12345.jpg', $pages[0]->image_url);
+        $this->assertStringContainsString($storedPath, $pages[0]->image_url);
+        $this->assertStringNotContainsString('test-image-12345.jpg', $pages[0]->image_url);
         $this->assertNull($pages[1]->image_url);
+    }
+
+    /**
+     * The cover image is optional, so failing to store our own copy of it must
+     * not sink the story — and must not leave Together's expiring URL behind.
+     */
+    public function test_it_saves_the_story_without_a_cover_when_storing_the_image_fails(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $this->fakeMediaDisk();
+
+        Http::fake([
+            'api.together.xyz/v1/chat/completions' => Http::response([
+                'choices' => [
+                    [
+                        'message' => [
+                            'content' => $this->mockStoryOutput(),
+                        ],
+                    ],
+                ],
+            ], 200),
+            'api.together.xyz/v1/images/generations' => Http::response([
+                'data' => [
+                    ['url' => 'https://api.together.ai/test-image-12345.jpg'],
+                ],
+            ], 200),
+            // Together hands back a URL, then its CDN falls over on the download.
+            'api.together.ai/*' => Http::response('', 500),
+        ]);
+
+        $response = $this->postJson('/api/v1/stories/generate', [
+            'transcript' => 'A story about a dragon who loves to read',
+        ]);
+
+        $response->assertStatus(200);
+        $this->assertNull($response->json('data.cover_image'));
+        $this->assertNull($response->json('data.pages.0.imageUrl'));
+
+        $story = Story::latest()->first();
+
+        $this->assertEquals("The Dragon's Library", $story->name);
+        $this->assertStringNotContainsString('![](', $story->body);
+        $this->assertStringNotContainsString('api.together.ai', $story->body);
+
+        $pages = StoryPage::where('story_id', $story->id)->orderBy('page_number')->get();
+        $this->assertCount(2, $pages);
+        $this->assertNull($pages[0]->image_url);
     }
 
     /**
@@ -114,6 +180,7 @@ STORY;
     {
         $user = User::factory()->create();
         $this->actingAs($user);
+        $this->fakeMediaDisk();
 
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
@@ -161,6 +228,7 @@ STORY;
     {
         $user = User::factory()->create();
         $this->actingAs($user);
+        $this->fakeMediaDisk();
 
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
@@ -177,6 +245,7 @@ STORY;
                     ['url' => 'https://example.com/image.jpg'],
                 ],
             ], 200),
+            'example.com/*' => Http::response('fake-jpg-bytes'),
         ]);
 
         $response = $this->postJson('/api/v1/stories/generate', [
@@ -202,6 +271,7 @@ STORY;
     {
         $user = User::factory()->create();
         $this->actingAs($user);
+        $this->fakeMediaDisk();
 
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
@@ -218,6 +288,7 @@ STORY;
                     ['url' => 'https://example.com/image.jpg'],
                 ],
             ], 200),
+            'example.com/*' => Http::response('fake-jpg-bytes'),
         ]);
 
         $response = $this->postJson('/api/v1/stories/generate', [
@@ -242,6 +313,7 @@ STORY;
     {
         $user = User::factory()->create();
         $this->actingAs($user);
+        $this->fakeMediaDisk();
 
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
@@ -258,6 +330,7 @@ STORY;
                     ['url' => 'https://example.com/image.jpg'],
                 ],
             ], 200),
+            'example.com/*' => Http::response('fake-jpg-bytes'),
         ]);
 
         $response = $this->postJson('/api/v1/stories/generate', [
@@ -279,6 +352,7 @@ STORY;
     {
         $user = User::factory()->create();
         $this->actingAs($user);
+        $this->fakeMediaDisk();
 
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
@@ -295,6 +369,7 @@ STORY;
                     ['url' => 'https://example.com/image.jpg'],
                 ],
             ], 200),
+            'example.com/*' => Http::response('fake-jpg-bytes'),
         ]);
 
         $response = $this->postJson('/api/v1/stories/generate', [
