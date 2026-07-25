@@ -17,6 +17,7 @@ class StoryPage extends Model
         'content',
         'illustration_prompt',
         'image_url',
+        'audio_url',
     ];
 
     public function story(): BelongsTo
