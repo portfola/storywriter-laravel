@@ -140,7 +140,11 @@ jobs:
             if [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR 2>/dev/null)" ]; then
               echo "==> Creating backup at ${BACKUP_DIR}..."
               mkdir -p "${BACKUP_DIR}"
-              cp -a $APP_DIR/. "${BACKUP_DIR}/"
+              # Backups exist to roll code back, so skip storage/app/public: that
+              # holds generated story images and audio, and copying it would keep
+              # five more copies of the whole media library on a 20 GB volume.
+              tar -C "$APP_DIR" --exclude='./storage/app/public/*' -cf - . \
+                | tar -C "${BACKUP_DIR}" -xf -
               echo "Backup created successfully"
 
               # Keep only last 5 backups
@@ -220,7 +224,7 @@ jobs:
           SESSION_DOMAIN=null
 
           BROADCAST_CONNECTION=log
-          FILESYSTEM_DISK=local
+          FILESYSTEM_DISK=public
           QUEUE_CONNECTION=database
 
           CACHE_STORE=database
@@ -244,6 +248,16 @@ jobs:
           sudo chown -R deploy:www-data $APP_DIR
           sudo chmod -R 775 $APP_DIR/storage
           sudo chmod -R 775 $APP_DIR/bootstrap/cache
+
+          echo "==> Linking public storage..."
+          php artisan storage:link --force
+          # storage:link only replaces an existing *symlink*. If public/storage is
+          # a real directory it prints an error, carries on, and still exits 0, so
+          # check the link itself rather than trusting the command.
+          if [ ! -L "$APP_DIR/public/storage" ]; then
+            echo "public/storage is not a symlink — stored images and audio will not be served."
+            exit 1
+          fi
 
           echo "==> Running database migrations..."
           php artisan migrate --force

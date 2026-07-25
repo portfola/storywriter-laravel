@@ -65,7 +65,15 @@ Copy `.env.example` to `.env` and add your API keys:
 DB_CONNECTION=sqlite
 TOGETHER_API_KEY=your_key_here
 ELEVENLABS_API_KEY=your_key_here
+FILESYSTEM_DISK=public
 ```
+
+`FILESYSTEM_DISK` is where generated story images and narration audio are
+written. It must be `public`, not the old `local` default — the `local` disk is
+private, so images written there come back 403/404 in the app. If your `.env`
+predates this and still says `local`, change it by hand; copying
+`.env.example` again won't touch a file you already have. Run
+`php artisan storage:link` once so `public/storage` exists.
 
 ## Releases & deployment
 
@@ -161,7 +169,8 @@ Two options, depending on how fast you need to be:
   files the bad release added), then rebuild the caches and restart PHP-FPM:
 
   ```bash
-  rsync -a --delete /var/www/releases/backup_<timestamp>/ /var/www/storywriter-prod/
+  rsync -a --delete --exclude='storage/app/public/' \
+    /var/www/releases/backup_<timestamp>/ /var/www/storywriter-prod/
   cd /var/www/storywriter-prod
   php artisan optimize:clear
   php artisan config:cache && php artisan route:cache && php artisan view:cache
@@ -169,6 +178,10 @@ Two options, depending on how fast you need to be:
   ```
 
   No rebuild, so it's fast — but follow up with a proper patch release.
+
+  The `--exclude` matters: backups don't contain `storage/app/public` (that's
+  generated story images and audio, not code), so without it `--delete` would
+  wipe every stored image and leave saved storybooks blank.
 
 **Migrations caveat:** neither path undoes database migrations — the bad
 release's migrations have already run against the production database. Keep
