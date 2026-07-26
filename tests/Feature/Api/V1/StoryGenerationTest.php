@@ -7,11 +7,21 @@ use App\Models\StoryPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StoryGenerationTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * Point media storage at a throwaway disk so tests never write real files.
+     */
+    private function fakeMediaDisk(): void
+    {
+        config(['filesystems.default' => 'public']);
+        Storage::fake('public');
+    }
 
     /**
      * Build a mock LLM response with [CHARACTERS], [ILLUSTRATION] directives,
@@ -72,6 +82,7 @@ STORY;
     {
         $user = User::factory()->create();
         $this->actingAs($user);
+        $this->fakeMediaDisk();
 
         Http::fake([
             'api.together.xyz/v1/chat/completions' => Http::response([
@@ -88,6 +99,7 @@ STORY;
                     ['url' => 'https://example.com/page1-image.jpg'],
                 ],
             ], 200),
+            'example.com/*' => Http::response('fake-jpg-bytes'),
         ]);
 
         $payload = [
@@ -114,11 +126,16 @@ STORY;
         $this->assertEquals(4, $data['page_count']);
         $this->assertCount(4, $data['pages']);
 
-        // Cover image is page 1's image
-        $this->assertEquals('https://example.com/page1-image.jpg', $data['cover_image']);
+        // Cover image is page 1's image, served from our own copy rather than
+        // Together's URL, which expires after a few hours.
+        $storedPath = "stories/{$data['story_id']}/pages/1/image.png";
+
+        $this->assertStringContainsString($storedPath, $data['cover_image']);
+        $this->assertStringNotContainsString('page1-image.jpg', $data['cover_image']);
+        Storage::disk('public')->assertExists($storedPath);
 
         // Page 1 has imageUrl, all pages have illustrationPrompt
-        $this->assertEquals('https://example.com/page1-image.jpg', $data['pages'][0]['imageUrl']);
+        $this->assertEquals($data['cover_image'], $data['pages'][0]['imageUrl']);
         $this->assertNotEmpty($data['pages'][0]['illustrationPrompt']);
 
         // Pages 2-4 have illustrationPrompt but null imageUrl
@@ -136,8 +153,9 @@ STORY;
         $storyPages = StoryPage::where('story_id', $story->id)->orderBy('page_number')->get();
         $this->assertCount(4, $storyPages);
 
-        // Only page 1 has image_url in database
-        $this->assertEquals('https://example.com/page1-image.jpg', $storyPages[0]->image_url);
+        // Only page 1 has image_url in database, and it points at the stored copy
+        $this->assertEquals($data['cover_image'], $storyPages[0]->image_url);
+        $this->assertStringContainsString($storedPath, $story->body);
         for ($i = 1; $i < 4; $i++) {
             $this->assertNull($storyPages[$i]->image_url, 'StoryPage '.($i + 1).' should have null image_url in DB');
         }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Story;
 use App\Models\StoryPage;
 use App\Models\TogetherAiUsage;
+use App\Services\MediaStorageService;
 use App\Services\PromptBuilder;
 use App\Support\Analytics;
 use Illuminate\Http\Client\ConnectionException;
@@ -16,7 +17,8 @@ use Illuminate\Support\Str;
 class StoryGenerationController extends Controller
 {
     public function __construct(
-        private PromptBuilder $promptBuilder
+        private PromptBuilder $promptBuilder,
+        private MediaStorageService $mediaStorage
     ) {}
 
     /**
@@ -213,40 +215,52 @@ class StoryGenerationController extends Controller
             }
         }
 
-        // Map parsed pages to include pageNumber and imageUrl for response
-        $parsed['pages'] = array_map(function ($page, $index) use ($imageUrl) {
-            return [
-                'pageNumber' => $index + 1,
-                'content' => $page['content'],
-                'illustrationPrompt' => $page['illustrationPrompt'],
-                'imageUrl' => ($index === 0 && $imageUrl) ? $imageUrl : null,
-            ];
-        }, $parsed['pages'], array_keys($parsed['pages']));
-
         // ---------------------------------------------------------
         // STEP 4: SAVE TO DATABASE
         // ---------------------------------------------------------
         $storyEntry = null;
         try {
-            // Inject the image at the top of the body for DB storage (backward compat)
-            $bodyForDb = $imageUrl
-                ? "![]( $imageUrl )\n\n".$storyText
-                : $storyText;
-
+            // The story is created before the cover image is stored, because its
+            // id is part of the storage path. The body picks the image up in the
+            // update below, once we know where our copy lives.
             $storyEntry = Story::create([
                 'user_id' => auth()->id() ?? 1,
                 'name' => $parsed['title'],
                 'slug' => Str::slug($parsed['title'] ?: 'story').'-'.Str::random(4),
-                'body' => $bodyForDb,
+                'body' => $storyText,
                 'prompt' => $validated['transcript'],
                 'characters_description' => $parsed['characters'],
             ]);
+
+            // Together's URLs expire after a few hours, so keep our own copy and
+            // persist that instead — otherwise saved storybooks go blank later.
+            if ($imageUrl) {
+                try {
+                    $imageUrl = $this->mediaStorage->storeFromUrl(
+                        $imageUrl,
+                        MediaStorageService::imagePath($storyEntry->id, 1)
+                    );
+                } catch (\RuntimeException $e) {
+                    \Log::error('Failed to store generated cover image: '.$e->getMessage(), [
+                        'story_id' => $storyEntry->id,
+                    ]);
+
+                    // The cover is optional, so the story still goes out — but
+                    // without a URL that is going to die in a few hours.
+                    $imageUrl = null;
+                }
+            }
+
+            // Inject the image at the top of the body for DB storage (backward compat)
+            if ($imageUrl) {
+                $storyEntry->update(['body' => "![]( $imageUrl )\n\n".$storyText]);
+            }
 
             // Create StoryPage records for each page
             foreach ($parsed['pages'] as $index => $page) {
                 StoryPage::create([
                     'story_id' => $storyEntry->id,
-                    'page_number' => $page['pageNumber'],
+                    'page_number' => $index + 1,
                     'content' => $page['content'],
                     'illustration_prompt' => $page['illustrationPrompt'],
                     'image_url' => ($index === 0 && $imageUrl) ? $imageUrl : null,
@@ -256,6 +270,17 @@ class StoryGenerationController extends Controller
         } catch (\Throwable $e) {
             \Log::error('DB SAVE ERROR: '.$e->getMessage());
         }
+
+        // Map parsed pages to include pageNumber and imageUrl for response. This
+        // runs after the save so the response hands back the stored image URL.
+        $parsed['pages'] = array_map(function ($page, $index) use ($imageUrl) {
+            return [
+                'pageNumber' => $index + 1,
+                'content' => $page['content'],
+                'illustrationPrompt' => $page['illustrationPrompt'],
+                'imageUrl' => ($index === 0 && $imageUrl) ? $imageUrl : null,
+            ];
+        }, $parsed['pages'], array_keys($parsed['pages']));
 
         Analytics::capture($userId, 'story_generation_completed', [
             'generation_time_ms' => round((microtime(true) - $startTime) * 1000),
