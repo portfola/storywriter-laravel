@@ -113,4 +113,160 @@ class UserCommandsTest extends TestCase
 
         $this->assertDatabaseHas('users', ['email' => 'ada@example.com']);
     }
+
+    public function test_it_updates_password_verification_and_admin_together(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'ada@example.com',
+            'is_admin' => false,
+            'email_verified_at' => null,
+        ]);
+
+        $this->artisan('users:update ada@example.com --password=new-password --verified --admin --force')
+            ->assertExitCode(0);
+
+        $user->refresh();
+
+        $this->assertTrue(Hash::check('new-password', $user->password));
+        $this->assertTrue($user->isAdmin());
+        $this->assertNotNull($user->email_verified_at);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'ada@example.com',
+            'password' => 'new-password',
+        ])->assertOk()->assertJsonStructure(['token']);
+    }
+
+    public function test_it_finds_the_account_by_id_or_by_email_whatever_the_case(): void
+    {
+        $byId = User::factory()->create(['email' => 'grace@example.com', 'is_admin' => false]);
+        $byEmail = User::factory()->create(['email' => 'ada@example.com', 'is_admin' => false]);
+
+        $this->artisan("users:update {$byId->id} --admin --force")->assertExitCode(0);
+        $this->artisan('users:update ADA@Example.com --admin --force')->assertExitCode(0);
+
+        $this->assertTrue($byId->refresh()->isAdmin());
+        $this->assertTrue($byEmail->refresh()->isAdmin());
+    }
+
+    public function test_it_can_demote_and_unverify(): void
+    {
+        $user = User::factory()->create(['is_admin' => true, 'email_verified_at' => now()]);
+
+        $this->artisan("users:update {$user->id} --no-admin --unverified --force")
+            ->assertExitCode(0);
+
+        $user->refresh();
+
+        $this->assertFalse($user->isAdmin());
+        $this->assertNull($user->email_verified_at);
+    }
+
+    public function test_it_prompts_for_the_password_when_asked_to(): void
+    {
+        $user = User::factory()->create();
+
+        $this->artisan("users:update {$user->id} --prompt-password --force")
+            ->expectsQuestion('New password', 'prompted-password')
+            ->assertExitCode(0);
+
+        $this->assertTrue(Hash::check('prompted-password', $user->refresh()->password));
+    }
+
+    public function test_it_revokes_api_tokens_on_request(): void
+    {
+        $user = User::factory()->create();
+        $user->createToken('test')->plainTextToken;
+
+        $this->artisan("users:update {$user->id} --password=new-password --revoke-tokens --force")
+            ->assertExitCode(0);
+
+        $this->assertSame(0, $user->tokens()->count());
+    }
+
+    public function test_it_leaves_api_tokens_alone_by_default(): void
+    {
+        $user = User::factory()->create();
+        $user->createToken('test');
+
+        $this->artisan("users:update {$user->id} --password=new-password --force")
+            ->assertExitCode(0);
+
+        $this->assertSame(1, $user->tokens()->count());
+    }
+
+    public function test_it_can_be_aborted_at_the_confirmation(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+
+        $this->artisan("users:update {$user->id} --admin")
+            ->expectsConfirmation('Apply these changes?', 'no')
+            ->expectsOutputToContain('Aborted, nothing was changed.')
+            ->assertExitCode(1);
+
+        $this->assertFalse($user->refresh()->isAdmin());
+    }
+
+    public function test_it_fails_when_the_account_does_not_exist(): void
+    {
+        $this->artisan('users:update nobody@example.com --admin --force')
+            ->expectsOutputToContain('No account matches')
+            ->assertExitCode(1);
+    }
+
+    public function test_it_fails_when_no_change_was_requested(): void
+    {
+        $user = User::factory()->create();
+
+        $this->artisan("users:update {$user->id} --force")
+            ->expectsOutputToContain('Nothing to change.')
+            ->assertExitCode(1);
+    }
+
+    public function test_it_refuses_contradictory_flags(): void
+    {
+        $user = User::factory()->create(['is_admin' => false]);
+
+        $this->artisan("users:update {$user->id} --admin --no-admin --force")
+            ->expectsOutputToContain('contradict each other')
+            ->assertExitCode(1);
+
+        $this->assertFalse($user->refresh()->isAdmin());
+    }
+
+    public function test_it_refuses_an_email_another_account_already_uses(): void
+    {
+        User::factory()->create(['email' => 'ada@example.com']);
+        $user = User::factory()->create(['email' => 'grace@example.com']);
+
+        $this->artisan("users:update {$user->id} --email=ADA@example.com --force")
+            ->expectsOutputToContain('Another account already uses this email address.')
+            ->assertExitCode(1);
+
+        $this->assertSame('grace@example.com', $user->refresh()->email);
+    }
+
+    public function test_it_allows_an_account_to_keep_its_own_email(): void
+    {
+        $user = User::factory()->create(['email' => 'ada@example.com', 'name' => 'Ada']);
+
+        $this->artisan("users:update {$user->id} --email=ADA@example.com --name=\"Ada Lovelace\" --force")
+            ->assertExitCode(0);
+
+        $user->refresh();
+
+        $this->assertSame('ada@example.com', $user->email);
+        $this->assertSame('Ada Lovelace', $user->name);
+    }
+
+    public function test_it_refuses_a_short_password_on_update(): void
+    {
+        $user = User::factory()->create();
+        $original = $user->password;
+
+        $this->artisan("users:update {$user->id} --password=short --force")
+            ->assertExitCode(1);
+
+        $this->assertSame($original, $user->refresh()->password);
+    }
 }
