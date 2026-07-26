@@ -219,10 +219,10 @@ class StoryGenerationController extends Controller
         // STEP 4: SAVE TO DATABASE
         // ---------------------------------------------------------
         $storyEntry = null;
+        $imagePath = null;
         try {
             // The story is created before the cover image is stored, because its
-            // id is part of the storage path. The body picks the image up in the
-            // update below, once we know where our copy lives.
+            // id is part of the storage path.
             $storyEntry = Story::create([
                 'user_id' => auth()->id() ?? 1,
                 'name' => $parsed['title'],
@@ -236,7 +236,7 @@ class StoryGenerationController extends Controller
             // persist that instead — otherwise saved storybooks go blank later.
             if ($imageUrl) {
                 try {
-                    $imageUrl = $this->mediaStorage->storeFromUrl(
+                    $imagePath = $this->mediaStorage->storeFromUrl(
                         $imageUrl,
                         MediaStorageService::imagePath($storyEntry->id, 1)
                     );
@@ -246,15 +246,17 @@ class StoryGenerationController extends Controller
                     ]);
 
                     // The cover is optional, so the story still goes out — but
-                    // without a URL that is going to die in a few hours.
-                    $imageUrl = null;
+                    // without a picture, since the provider's own URL dies in a
+                    // few hours and is not worth saving.
+                    $imagePath = null;
                 }
             }
 
-            // Inject the image at the top of the body for DB storage (backward compat)
-            if ($imageUrl) {
-                $storyEntry->update(['body' => "![]( $imageUrl )\n\n".$storyText]);
-            }
+            // The cover image used to be inlined into the body as markdown. It
+            // isn't any more: a signed URL expires, so writing one into the body
+            // saves a link that will be dead by the time anyone reads it. The
+            // cover is page 1's illustration and nothing else, and it reaches
+            // clients as coverImageUrl on the story, signed when it is asked for.
 
             // Create StoryPage records for each page
             foreach ($parsed['pages'] as $index => $page) {
@@ -263,7 +265,7 @@ class StoryGenerationController extends Controller
                     'page_number' => $index + 1,
                     'content' => $page['content'],
                     'illustration_prompt' => $page['illustrationPrompt'],
-                    'image_url' => ($index === 0 && $imageUrl) ? $imageUrl : null,
+                    'image_url' => ($index === 0) ? $imagePath : null,
                 ]);
             }
 
@@ -271,28 +273,32 @@ class StoryGenerationController extends Controller
             \Log::error('DB SAVE ERROR: '.$e->getMessage());
         }
 
+        // A URL for the copy we just stored, good for as long as it is signed for.
+        // Built here rather than saved anywhere, so it is fresh for this response.
+        $coverImageUrl = $this->mediaStorage->temporaryUrl($imagePath);
+
         // Map parsed pages to include pageNumber and imageUrl for response. This
         // runs after the save so the response hands back the stored image URL.
-        $parsed['pages'] = array_map(function ($page, $index) use ($imageUrl) {
+        $parsed['pages'] = array_map(function ($page, $index) use ($coverImageUrl) {
             return [
                 'pageNumber' => $index + 1,
                 'content' => $page['content'],
                 'illustrationPrompt' => $page['illustrationPrompt'],
-                'imageUrl' => ($index === 0 && $imageUrl) ? $imageUrl : null,
+                'imageUrl' => ($index === 0) ? $coverImageUrl : null,
             ];
         }, $parsed['pages'], array_keys($parsed['pages']));
 
         Analytics::capture($userId, 'story_generation_completed', [
             'generation_time_ms' => round((microtime(true) - $startTime) * 1000),
             'story_length' => strlen($storyText),
-            'has_cover_image' => $imageUrl !== null,
+            'has_cover_image' => $coverImageUrl !== null,
         ]);
 
         return response()->json([
             'data' => [
                 'title' => $parsed['title'],
                 'pages' => $parsed['pages'],
-                'cover_image' => $imageUrl,
+                'cover_image' => $coverImageUrl,
                 'story_id' => $storyEntry?->id,
                 'page_count' => count($parsed['pages']),
             ],

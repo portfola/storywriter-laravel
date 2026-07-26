@@ -153,9 +153,11 @@ STORY;
         $storyPages = StoryPage::where('story_id', $story->id)->orderBy('page_number')->get();
         $this->assertCount(4, $storyPages);
 
-        // Only page 1 has image_url in database, and it points at the stored copy
-        $this->assertEquals($data['cover_image'], $storyPages[0]->image_url);
-        $this->assertStringContainsString($storedPath, $story->body);
+        // Only page 1 has an image in the database, and what is saved is where the
+        // file lives — not the signed URL, which would be dead by the time anyone
+        // read the row back.
+        $this->assertEquals($storedPath, $storyPages[0]->image_url);
+        $this->assertStringNotContainsString('![](', $story->body);
         for ($i = 1; $i < 4; $i++) {
             $this->assertNull($storyPages[$i]->image_url, 'StoryPage '.($i + 1).' should have null image_url in DB');
         }

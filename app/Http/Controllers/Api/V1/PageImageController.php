@@ -37,7 +37,7 @@ class PageImageController extends Controller
         // Idempotent: return existing image if already generated
         if ($page->image_url) {
             return response()->json([
-                'data' => ['imageUrl' => $page->image_url],
+                'data' => ['imageUrl' => $page->signed_image_url],
             ]);
         }
 
@@ -105,7 +105,7 @@ class PageImageController extends Controller
             // Together's URLs expire after a few hours, so keep our own copy and
             // persist that instead — otherwise saved storybooks go blank later.
             try {
-                $storedUrl = $this->mediaStorage->storeFromUrl(
+                $storedPath = $this->mediaStorage->storeFromUrl(
                     $imageUrl,
                     MediaStorageService::imagePath($story->id, $pageNumber)
                 );
@@ -118,11 +118,12 @@ class PageImageController extends Controller
                 return response()->json(['error' => 'Image generation failed'], 503);
             }
 
-            // Persist the stored image URL
-            $page->update(['image_url' => $storedUrl]);
+            // Persist where the file lives, not a URL: the bucket is private, so
+            // any URL for it stops working once its signature expires.
+            $page->update(['image_url' => $storedPath]);
 
             return response()->json([
-                'data' => ['imageUrl' => $storedUrl],
+                'data' => ['imageUrl' => $page->signed_image_url],
             ]);
         } catch (\Exception $e) {
             \Log::error('Page image generation exception: '.$e->getMessage());

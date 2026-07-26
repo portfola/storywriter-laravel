@@ -13,6 +13,12 @@ use RuntimeException;
  *
  * Which disk is used comes from FILESYSTEM_DISK: the "public" local disk in
  * development, S3 in staging/production.
+ *
+ * Writes return the object path, not a URL, and that path is what gets persisted.
+ * The bucket is private, so a URL is only good for as long as it is signed for —
+ * baking one into the database would put a link that 403s from the day it expires
+ * into every saved storybook. Call temporaryUrl() when a URL actually leaves the
+ * API instead.
  */
 class MediaStorageService
 {
@@ -35,7 +41,7 @@ class MediaStorageService
     /**
      * Download a file from a remote URL and store it under $path on our disk.
      *
-     * @return string URL of the stored copy
+     * @return string the object path of the stored copy
      *
      * @throws RuntimeException if the download or the write fails
      */
@@ -65,7 +71,7 @@ class MediaStorageService
     /**
      * Store raw bytes under $path on our disk.
      *
-     * @return string URL of the stored file
+     * @return string the object path it was stored at
      *
      * @throws RuntimeException if the write fails
      */
@@ -77,7 +83,7 @@ class MediaStorageService
             throw new RuntimeException("Failed to write media to the [{$disk}] disk at {$path}");
         }
 
-        return $this->url($path);
+        return $path;
     }
 
     /**
@@ -102,6 +108,38 @@ class MediaStorageService
     public function disk(): string
     {
         return config('filesystems.default');
+    }
+
+    /**
+     * A URL a client can fetch $stored from, good for a limited time.
+     *
+     * $stored is what the database holds. Normally that is an object path, which
+     * gets signed here. Rows written before media moved to stored paths hold an
+     * absolute URL instead, and there is nothing to sign in one of those, so it
+     * is handed back untouched — it either still works (the file is on the public
+     * disk it was written to) or it is already dead, and re-signing it would not
+     * help either way.
+     */
+    public function temporaryUrl(?string $stored): ?string
+    {
+        if (blank($stored)) {
+            return null;
+        }
+
+        if (str_starts_with($stored, 'http://') || str_starts_with($stored, 'https://')) {
+            return $stored;
+        }
+
+        $ttl = now()->addMinutes((int) config('filesystems.media_url_ttl_minutes'));
+
+        try {
+            return Storage::disk($this->disk())->temporaryUrl($stored, $ttl);
+        } catch (RuntimeException $e) {
+            // The local "public" disk used in development can't sign URLs. It is
+            // symlinked into public/ and served to anyone regardless, so a plain
+            // URL gives away nothing a signed one would have protected.
+            return $this->url($stored);
+        }
     }
 
     /**

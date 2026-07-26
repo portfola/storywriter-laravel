@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Story extends Model
 {
@@ -36,6 +37,17 @@ class Story extends Model
     public function pages(): HasMany
     {
         return $this->hasMany(StoryPage::class)->orderBy('page_number');
+    }
+
+    /**
+     * Page 1, whose illustration doubles as the story's cover.
+     *
+     * Its own relation so the bookshelf list can eager-load one page per story
+     * for the cover image, instead of dragging every page of every story back.
+     */
+    public function coverPage(): HasOne
+    {
+        return $this->hasOne(StoryPage::class)->where('page_number', 1);
     }
 
     public function savedByUsers(): BelongsToMany
