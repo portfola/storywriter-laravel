@@ -102,9 +102,12 @@ variable "app_content_bucket_name" {
 }
 
 variable "app_content_cors_allowed_origins" {
-  description = "Origins allowed to read app content from the bucket via fetch()/XHR"
+  description = "Origins allowed to read app content from the bucket via fetch()/XHR. The signed URL is what controls access; this only decides which pages a browser hands the response to. Keep in step with config/cors.php."
   type        = list(string)
-  default     = ["*"]
+  default = [
+    "https://storywriter.net",
+    "https://www.storywriter.net",
+  ]
 }
 
 # Module call

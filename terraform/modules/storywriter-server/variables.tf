@@ -93,7 +93,6 @@ variable "app_content_bucket_name" {
 }
 
 variable "app_content_cors_allowed_origins" {
-  description = "Origins allowed to read app content from the bucket via fetch()/XHR. Only affects browsers; the signed URL is what actually controls access."
+  description = "Origins allowed to read app content from the bucket via fetch()/XHR. Only affects browsers; the signed URL is what actually controls access. No default on purpose -- each environment names its own origins so a new one cannot quietly inherit a wildcard."
   type        = list(string)
-  default     = ["*"]
 }

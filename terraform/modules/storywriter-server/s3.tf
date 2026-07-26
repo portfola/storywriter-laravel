@@ -40,13 +40,29 @@ resource "aws_s3_bucket_public_access_block" "app_content" {
   restrict_public_buckets = true
 }
 
-# Turn ACLs off entirely -- the bucket owner owns every object, and access is
-# decided by the IAM policy below and nothing else.
+# The bucket owner owns every object, and the IAM policy below is what decides
+# access.
+#
+# This says BucketOwnerPreferred rather than BucketOwnerEnforced, which would be
+# the more modern setting, and that is deliberate. BucketOwnerEnforced turns ACLs
+# off completely, and S3 then rejects any PutObject that names an ACL at all --
+# 400 AccessControlListNotSupported -- unless the ACL is bucket-owner-full-control.
+# Laravel always names one. Storage::put() with no visibility argument still ends
+# up in AwsS3V3Adapter::upload(), which falls back to determineAcl() and sends
+# ACL: private. Every write would fail, and with 'throw' => false on the s3 disk
+# it would surface as a bare 503 rather than anything that says ACL.
+#
+# Nothing is lost by allowing ACLs here: the public access block above is what
+# actually keeps this bucket private, and it blocks public ACLs on all four
+# settings, so a public-read ACL could not take effect even if something sent one.
+#
+# To move to BucketOwnerEnforced later, give the s3 disk in config/filesystems.php
+# an 'options' => ['ACL' => 'bucket-owner-full-control'] entry first.
 resource "aws_s3_bucket_ownership_controls" "app_content" {
   bucket = aws_s3_bucket.app_content.id
 
   rule {
-    object_ownership = "BucketOwnerEnforced"
+    object_ownership = "BucketOwnerPreferred"
   }
 }
 
@@ -57,7 +73,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "app_content" {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
@@ -92,6 +107,38 @@ resource "aws_s3_bucket_cors_configuration" "app_content" {
   }
 }
 
+# Refuse anything that arrives over plain HTTP. Signed URLs get handed to a
+# tablet and travel through whatever network it is on, so this is the one thing
+# worth saying at the bucket level rather than trusting every caller to get right.
+resource "aws_s3_bucket_policy" "app_content" {
+  bucket = aws_s3_bucket.app_content.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyUnencryptedTransport"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          aws_s3_bucket.app_content.arn,
+          "${aws_s3_bucket.app_content.arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
+      }
+    ]
+  })
+
+  # A deny-only policy is never a public one, but let the public access block
+  # land first so block_public_policy is already in place when this is written.
+  depends_on = [aws_s3_bucket_public_access_block.app_content]
+}
+
 # Let the app server read and write this one bucket. No AWS access keys are
 # needed anywhere: the instance profile already attached to the EC2 instance
 # supplies credentials, and Laravel's s3 disk falls through to them when
@@ -109,7 +156,13 @@ resource "aws_iam_policy" "app_content" {
         Action = [
           "s3:GetObject",
           "s3:PutObject",
-          "s3:DeleteObject"
+          "s3:DeleteObject",
+          # PutObject covers starting, uploading and completing a multipart
+          # upload, but not cleaning one up. The SDK switches to multipart above
+          # 5MB, and without these an upload that dies partway cannot abort
+          # itself -- the lifecycle rule above would be left to sweep it up.
+          "s3:AbortMultipartUpload",
+          "s3:ListMultipartUploadParts"
         ]
         Resource = "${aws_s3_bucket.app_content.arn}/*"
       },
@@ -118,7 +171,8 @@ resource "aws_iam_policy" "app_content" {
         Effect = "Allow"
         Action = [
           "s3:ListBucket",
-          "s3:GetBucketLocation"
+          "s3:GetBucketLocation",
+          "s3:ListBucketMultipartUploads"
         ]
         Resource = aws_s3_bucket.app_content.arn
       }

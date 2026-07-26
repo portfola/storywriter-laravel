@@ -107,6 +107,19 @@ The bucket carries `prevent_destroy = true`, because the only way to recreate
 its contents is to pay Together AI and ElevenLabs for them again. `terraform
 destroy` will refuse until someone removes that block on purpose.
 
+S3 bucket names are globally unique, so if `{app_name}-content` is already taken
+by somebody else, `terraform plan` will say so and you can set
+`app_content_bucket_name` to pick another. Do that **before the first apply**.
+Afterwards, changing the name means replacing the bucket, and `prevent_destroy`
+will refuse — you'd have to drop that block, apply, and copy the objects across
+by hand.
+
+ACLs are left enabled on the bucket (`BucketOwnerPreferred`) even though
+disabling them is the more modern choice. Laravel's S3 driver names an ACL on
+every upload, and a bucket with ACLs disabled rejects those outright. The public
+access block is what actually keeps the bucket private. There's a longer note in
+`s3.tf` next to the setting.
+
 ## Releases & deployment
 
 Deploys are driven by two workflows:
