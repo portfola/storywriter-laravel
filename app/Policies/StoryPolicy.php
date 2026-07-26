@@ -9,10 +9,13 @@ class StoryPolicy
 {
     /**
      * Determine whether the user can view any models.
+     *
+     * The listing endpoints only ever query through the authenticated user's
+     * own relations, so there is nothing left to scope at this point.
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -20,7 +23,7 @@ class StoryPolicy
      */
     public function view(User $user, Story $story): bool
     {
-        return false;
+        return $this->owns($user, $story);
     }
 
     /**
@@ -28,7 +31,7 @@ class StoryPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -36,7 +39,7 @@ class StoryPolicy
      */
     public function update(User $user, Story $story): bool
     {
-        return false;
+        return $this->owns($user, $story);
     }
 
     /**
@@ -44,7 +47,7 @@ class StoryPolicy
      */
     public function delete(User $user, Story $story): bool
     {
-        return false;
+        return $this->owns($user, $story);
     }
 
     /**
@@ -52,7 +55,7 @@ class StoryPolicy
      */
     public function restore(User $user, Story $story): bool
     {
-        return false;
+        return $this->owns($user, $story);
     }
 
     /**
@@ -60,6 +63,18 @@ class StoryPolicy
      */
     public function forceDelete(User $user, Story $story): bool
     {
-        return false;
+        return $this->owns($user, $story);
+    }
+
+    /**
+     * A story belongs to exactly one user.
+     *
+     * Admins deliberately get no bypass here. What an admin may see of a user's
+     * content is still an open decision (Fizzy #96), and until it is settled the
+     * default has to be the restrictive one.
+     */
+    private function owns(User $user, Story $story): bool
+    {
+        return $user->id === $story->user_id;
     }
 }

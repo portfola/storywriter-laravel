@@ -11,6 +11,13 @@ use Illuminate\Http\Request;
 
 class StoryController extends Controller
 {
+    public function __construct()
+    {
+        // Runs StoryPolicy over index/show/store/update/destroy. save(), unsave()
+        // and saved() are not resource methods, so they authorize by hand below.
+        $this->authorizeResource(Story::class, 'story');
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -82,6 +89,8 @@ class StoryController extends Controller
      */
     public function save(Request $request, Story $story)
     {
+        $this->authorize('view', $story);
+
         $validated = $request->validate([
             'elevenlabs_conversation_id' => 'nullable|string|max:255',
         ]);
@@ -100,6 +109,8 @@ class StoryController extends Controller
      */
     public function unsave(Story $story)
     {
+        $this->authorize('view', $story);
+
         auth()->user()->savedStories()->detach($story->id);
 
         return response()->json(null, 204);
