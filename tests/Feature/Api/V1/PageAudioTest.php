@@ -13,20 +13,24 @@ use Tests\TestCase;
 
 /**
  * Covers the per-page narration endpoint: narration is generated once, stored
- * on our own disk, and handed back from storage on every replay so we never
+ * on the media disk, and handed back from storage on every replay so we never
  * pay ElevenLabs twice for the same page.
+ *
+ * The media disk is deliberately not the default one — the default is the local
+ * "public" disk on staging and production, which nginx serves to anyone.
  */
 class PageAudioTest extends TestCase
 {
     use RefreshDatabase;
 
     /**
-     * Point media storage at a throwaway disk so tests never write real files.
+     * Point media storage at throwaway disks so tests never write real files.
      */
     private function fakeMediaDisk(): void
     {
-        config(['filesystems.default' => 'public']);
+        config(['filesystems.default' => 'public', 'filesystems.media' => 'media']);
         Storage::fake('public');
+        Storage::fake('media');
     }
 
     /** @test */
@@ -54,13 +58,20 @@ class PageAudioTest extends TestCase
         $this->assertSame('audio/mpeg', $response->headers->get('Content-Type'));
         $this->assertSame('fake-mp3-bytes', $response->getContent());
 
-        // The narration is kept on our disk and the page points at that copy.
+        // The narration is kept on the media disk, and nowhere near the publicly
+        // served one — these are recordings of children reading their own stories.
         $storedPath = "stories/{$story->id}/pages/2/narration.mp3";
-        Storage::disk('public')->assertExists($storedPath);
-        $this->assertSame('fake-mp3-bytes', Storage::disk('public')->get($storedPath));
+        Storage::disk('media')->assertExists($storedPath);
+        $this->assertSame('fake-mp3-bytes', Storage::disk('media')->get($storedPath));
+        Storage::disk('public')->assertMissing($storedPath);
 
+        // The page points at the authenticated endpoint, not at a public file.
         $page->refresh();
-        $this->assertStringContainsString($storedPath, $page->audio_url);
+        $this->assertSame(
+            route('stories.pages.audio', ['story' => $story->id, 'pageNumber' => 2]),
+            $page->audio_url
+        );
+        $this->assertStringNotContainsString('narration.mp3', $page->audio_url);
 
         // Narration is generated from the page's own text, not anything a client sent.
         Http::assertSent(function ($request) {
@@ -91,10 +102,10 @@ class PageAudioTest extends TestCase
             'story_id' => $story->id,
             'page_number' => 1,
             'content' => 'Once upon a time.',
-            'audio_url' => Storage::disk('public')->url($storedPath),
+            'audio_url' => route('stories.pages.audio', ['story' => $story->id, 'pageNumber' => 1]),
         ]);
 
-        Storage::disk('public')->put($storedPath, 'already-stored-mp3');
+        Storage::disk('media')->put($storedPath, 'already-stored-mp3');
 
         $response = $this->actingAs($user)
             ->postJson("/api/v1/stories/{$story->id}/pages/1/audio");
@@ -125,7 +136,7 @@ class PageAudioTest extends TestCase
             'story_id' => $story->id,
             'page_number' => 1,
             'content' => 'Once upon a time.',
-            'audio_url' => Storage::disk('public')->url($storedPath),
+            'audio_url' => route('stories.pages.audio', ['story' => $story->id, 'pageNumber' => 1]),
         ]);
 
         $response = $this->actingAs($user)
@@ -133,7 +144,7 @@ class PageAudioTest extends TestCase
 
         $response->assertOk();
         $this->assertSame('regenerated-mp3', $response->getContent());
-        Storage::disk('public')->assertExists($storedPath);
+        Storage::disk('media')->assertExists($storedPath);
 
         Http::assertSent(fn ($request) => str_contains($request->url(), 'api.elevenlabs.io/v1/text-to-speech/'));
     }

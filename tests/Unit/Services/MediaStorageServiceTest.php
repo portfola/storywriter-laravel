@@ -102,6 +102,38 @@ class MediaStorageServiceTest extends TestCase
     }
 
     /** @test */
+    public function media_bytes_go_to_the_media_disk_and_return_a_path_not_a_url()
+    {
+        config(['filesystems.media' => 'media']);
+        Storage::fake('media');
+
+        $path = $this->storage->storeMediaBytes('raw-mp3-bytes', 'stories/1/pages/1/narration.mp3');
+
+        // A path, not a URL — nothing on this disk is fetchable without an auth check.
+        $this->assertSame('stories/1/pages/1/narration.mp3', $path);
+
+        Storage::disk('media')->assertExists($path);
+        // And emphatically not on the disk nginx serves off the storage:link symlink.
+        Storage::disk('public')->assertMissing($path);
+
+        $this->assertTrue($this->storage->mediaExists($path));
+        $this->assertSame('raw-mp3-bytes', $this->storage->getMedia($path));
+    }
+
+    /** @test */
+    public function the_media_disk_is_never_publicly_served()
+    {
+        // Guards the whole point of the disk: a local disk with "serve" on gets a
+        // /storage route from Laravel, and one under storage/app/public gets
+        // symlinked into public/ by storage:link. Neither may be true here.
+        $config = config('filesystems.disks.'.config('filesystems.media'));
+
+        $this->assertFalse($config['serve'] ?? false);
+        $this->assertSame('private', $config['visibility'] ?? null);
+        $this->assertStringNotContainsString(storage_path('app/public'), $config['root']);
+    }
+
+    /** @test */
     public function url_falls_back_to_the_app_url_when_the_disk_returns_a_relative_path()
     {
         // A disk with no "url" configured returns a root-relative path, which the

@@ -13,6 +13,10 @@ use RuntimeException;
  *
  * Which disk is used comes from FILESYSTEM_DISK: the "public" local disk in
  * development, S3 in staging/production.
+ *
+ * Narration audio goes somewhere else — the "media" disk (MEDIA_FILESYSTEM_DISK),
+ * which is never symlinked into public/ — through the storeMediaBytes()/
+ * mediaExists()/getMedia() trio. See mediaDisk() for why.
  */
 class MediaStorageService
 {
@@ -97,11 +101,57 @@ class MediaStorageService
     }
 
     /**
+     * Store raw bytes under $path on the media disk.
+     *
+     * Returns the stored path rather than a URL, because there is no URL to
+     * hand out: nothing on this disk is reachable except through an endpoint
+     * that has already checked who is asking.
+     *
+     * @throws RuntimeException if the write fails
+     */
+    public function storeMediaBytes(string $bytes, string $path): string
+    {
+        $disk = $this->mediaDisk();
+
+        if (! Storage::disk($disk)->put($path, $bytes)) {
+            throw new RuntimeException("Failed to write media to the [{$disk}] disk at {$path}");
+        }
+
+        return $path;
+    }
+
+    /**
+     * Whether a file is already stored at $path on the media disk.
+     */
+    public function mediaExists(string $path): bool
+    {
+        return Storage::disk($this->mediaDisk())->exists($path);
+    }
+
+    /**
+     * Raw bytes of a file on the media disk, or null if it isn't there.
+     */
+    public function getMedia(string $path): ?string
+    {
+        return Storage::disk($this->mediaDisk())->get($path);
+    }
+
+    /**
      * The disk media is written to.
      */
     public function disk(): string
     {
         return config('filesystems.default');
+    }
+
+    /**
+     * The disk for media that must not be readable without an authorization
+     * check. Separate from disk() because the default disk is the local
+     * "public" one on staging and production, which nginx serves to anyone.
+     */
+    public function mediaDisk(): string
+    {
+        return config('filesystems.media');
     }
 
     /**

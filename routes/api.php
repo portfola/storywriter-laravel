@@ -31,6 +31,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/stories/{story:id}/pages/{pageNumber}/image', [PageImageController::class, 'generate'])
             ->middleware('throttle:ai-generation');
         Route::post('/stories/{story:id}/pages/{pageNumber}/audio', [PageAudioController::class, 'generate'])
+            ->name('stories.pages.audio')
             ->middleware('throttle:ai-generation');
 
         Route::get('/stories/saved', [StoryController::class, 'saved']);

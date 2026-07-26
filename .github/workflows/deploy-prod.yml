@@ -140,10 +140,13 @@ jobs:
             if [ -d "$APP_DIR" ] && [ "$(ls -A $APP_DIR 2>/dev/null)" ]; then
               echo "==> Creating backup at ${BACKUP_DIR}..."
               mkdir -p "${BACKUP_DIR}"
-              # Backups exist to roll code back, so skip storage/app/public: that
-              # holds generated story images and audio, and copying it would keep
-              # five more copies of the whole media library on a 20 GB volume.
-              tar -C "$APP_DIR" --exclude='./storage/app/public/*' -cf - . \
+              # Backups exist to roll code back, so skip storage/app/public and
+              # storage/app/media: those hold generated story images and narration
+              # audio, and copying them would keep five more copies of the whole
+              # media library on a 20 GB volume.
+              tar -C "$APP_DIR" \
+                --exclude='./storage/app/public/*' \
+                --exclude='./storage/app/media/*' -cf - . \
                 | tar -C "${BACKUP_DIR}" -xf -
               echo "Backup created successfully"
 

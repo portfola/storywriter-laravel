@@ -19,8 +19,10 @@ class PageAudioController extends Controller
     /**
      * Generate (or return the already-stored) narration audio for a story page.
      *
-     * Narration is generated once and kept on our own disk, so replays cost
-     * nothing and survive an app restart.
+     * Narration is generated once and kept on the media disk, so replays cost
+     * nothing and survive an app restart. That disk is not publicly served —
+     * these are recordings of children reading their own stories, so the bytes
+     * only ever leave through this endpoint, after the ownership check below.
      */
     public function generate(Story $story, int $pageNumber)
     {
@@ -41,8 +43,8 @@ class PageAudioController extends Controller
         // Idempotent: hand back the stored narration without calling ElevenLabs.
         // If the row says we have audio but the file is gone (a disk switched
         // out from under us, say), fall through and generate it again.
-        if ($page->audio_url && $this->mediaStorage->exists($path)) {
-            return $this->audioResponse($this->mediaStorage->get($path));
+        if ($page->audio_url && $this->mediaStorage->mediaExists($path)) {
+            return $this->audioResponse($this->mediaStorage->getMedia($path));
         }
 
         $text = trim((string) $page->content);
@@ -123,7 +125,7 @@ class PageAudioController extends Controller
         $audio = $response->body();
 
         try {
-            $audioUrl = $this->mediaStorage->storeBytes($audio, $path);
+            $this->mediaStorage->storeMediaBytes($audio, $path);
         } catch (\RuntimeException $e) {
             Log::error('Failed to store page narration: '.$e->getMessage(), [
                 'story_id' => $story->id,
@@ -133,7 +135,10 @@ class PageAudioController extends Controller
             return response()->json(['error' => 'Narration storage failed'], 503);
         }
 
-        $page->update(['audio_url' => $audioUrl]);
+        // The stored file has no public URL any more, so audio_url points back at
+        // this endpoint — the one route that will hand the bytes over, and only
+        // to the owner. It doubles as the "we already have narration" marker.
+        $page->update(['audio_url' => self::audioUrl($story->id, $pageNumber)]);
 
         // Record the spend against the user's daily cap.
         ElevenLabsUsage::logTtsRequest(text: $text, voiceId: $voiceId, modelId: $modelId);
@@ -146,6 +151,14 @@ class PageAudioController extends Controller
         ]);
 
         return $this->audioResponse($audio);
+    }
+
+    /**
+     * The authenticated URL a client fetches a page's narration from.
+     */
+    public static function audioUrl(int $storyId, int $pageNumber): string
+    {
+        return route('stories.pages.audio', ['story' => $storyId, 'pageNumber' => $pageNumber]);
     }
 
     private function audioResponse(string $audio)

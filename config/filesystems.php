@@ -17,6 +17,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Media Filesystem Disk
+    |--------------------------------------------------------------------------
+    |
+    | Disk for story media that must never be readable without an authorization
+    | check — narration audio today. Deliberately NOT the default disk: that is
+    | the "public" local disk on staging and production, and `storage:link`
+    | hands the whole of it to nginx, which serves any path that is guessed.
+    |
+    */
+
+    'media' => env('MEDIA_FILESYSTEM_DISK', 'media'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
@@ -43,6 +57,18 @@ return [
             'root' => storage_path('app/public'),
             'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
+        // Never symlinked into public/ and never route-served: "serve" is off, so
+        // Laravel registers no /storage route for it. The only way out is through
+        // an endpoint that checks who is asking.
+        'media' => [
+            'driver' => 'local',
+            'root' => storage_path('app/media'),
+            'serve' => false,
+            'visibility' => 'private',
             'throw' => false,
             'report' => false,
         ],
