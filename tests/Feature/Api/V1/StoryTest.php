@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Models\Story;
+use App\Models\StoryPage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -59,6 +60,30 @@ class StoryTest extends TestCase
                 'user_id' => $story->user_id,
             ],
         ]);
+    }
+
+    public function test_single_story_pages_expose_an_audio_url(): void
+    {
+        // Arrange: a story with one page, no narration generated yet
+        $user = User::factory()->create();
+        $story = Story::factory()->for($user)->create();
+        StoryPage::factory()->for($story)->create();
+
+        Sanctum::actingAs($user);
+
+        // Act
+        $response = $this->getJson('/api/v1/stories/'.$story->slug);
+
+        // Assert: audioUrl is part of the page shape, and null until narration is stored
+        $response->assertOk();
+        $response->assertJsonStructure([
+            'data' => [
+                'pages' => [
+                    ['pageNumber', 'content', 'illustrationPrompt', 'imageUrl', 'audioUrl'],
+                ],
+            ],
+        ]);
+        $this->assertNull($response->json('data.pages.0.audioUrl'));
     }
 
     public function test_user_can_get_saved_stories(): void
