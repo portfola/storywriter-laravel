@@ -75,6 +75,51 @@ predates this and still says `local`, change it by hand; copying
 `.env.example` again won't touch a file you already have. Run
 `php artisan storage:link` once so `public/storage` exists.
 
+### App content storage (staging/production)
+
+Story illustrations and narration audio are copied out of Together AI and
+ElevenLabs and kept in an S3 bucket, one per environment, defined in
+`terraform/modules/storywriter-server/s3.tf`. Terraform names it
+`{app_name}-content` — so `storywriter-staging-content` and
+`storywriter-prod-content` — and the bucket name is also a stack output
+(`app_content_bucket`).
+
+The bucket is private and stays private. Object keys look like
+`stories/{storyId}/pages/{n}/image.png`, which anyone could walk by counting
+upwards, and it's children's content, so it is never served straight off S3.
+The app hands out a time-limited signed URL instead.
+
+Nothing needs AWS access keys. The EC2 instance profile already grants the app
+read/write on its own bucket, and Laravel's `s3` disk falls through to those
+credentials when `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` are unset. Once
+the bucket exists, a deployed environment only needs:
+
+```env
+FILESYSTEM_DISK=s3
+AWS_BUCKET=storywriter-staging-content   # terraform output app_content_bucket
+AWS_DEFAULT_REGION=us-east-1
+```
+
+None of those are secrets, so they belong in the deploy workflow's `.env` block
+rather than SSM Parameter Store.
+
+The bucket carries `prevent_destroy = true`, because the only way to recreate
+its contents is to pay Together AI and ElevenLabs for them again. `terraform
+destroy` will refuse until someone removes that block on purpose.
+
+S3 bucket names are globally unique, so if `{app_name}-content` is already taken
+by somebody else, `terraform plan` will say so and you can set
+`app_content_bucket_name` to pick another. Do that **before the first apply**.
+Afterwards, changing the name means replacing the bucket, and `prevent_destroy`
+will refuse — you'd have to drop that block, apply, and copy the objects across
+by hand.
+
+ACLs are left enabled on the bucket (`BucketOwnerPreferred`) even though
+disabling them is the more modern choice. Laravel's S3 driver names an ACL on
+every upload, and a bucket with ACLs disabled rejects those outright. The public
+access block is what actually keeps the bucket private. There's a longer note in
+`s3.tf` next to the setting.
+
 ## Releases & deployment
 
 Deploys are driven by two workflows:

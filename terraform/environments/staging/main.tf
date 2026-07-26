@@ -12,7 +12,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
   profile = "storywriter"
 }
 
@@ -95,6 +95,18 @@ variable "github_actions_public_key" {
   type        = string
 }
 
+variable "app_content_bucket_name" {
+  description = "Name of the S3 bucket for story images and narration audio. Defaults to {app_name}-content."
+  type        = string
+  default     = ""
+}
+
+variable "app_content_cors_allowed_origins" {
+  description = "Origins allowed to read app content from the bucket via fetch()/XHR. The signed URL is what controls access; this only decides which pages a browser hands the response to. Keep in step with config/cors.php."
+  type        = list(string)
+  default     = ["https://staging.storywriter.net"]
+}
+
 # Module call
 module "storywriter_server" {
   source = "../../modules/storywriter-server"
@@ -114,4 +126,7 @@ module "storywriter_server" {
   allowed_ssh_cidrs         = var.allowed_ssh_cidrs
   admin_email               = var.admin_email
   github_actions_public_key = var.github_actions_public_key
+
+  app_content_bucket_name          = var.app_content_bucket_name
+  app_content_cors_allowed_origins = var.app_content_cors_allowed_origins
 }
