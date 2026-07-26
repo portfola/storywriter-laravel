@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Story;
 use App\Models\TogetherAiUsage;
+use App\Services\MediaStorageService;
 use App\Services\PromptBuilder;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -12,7 +13,8 @@ use Illuminate\Support\Facades\Log;
 class PageImageController extends Controller
 {
     public function __construct(
-        private PromptBuilder $promptBuilder
+        private PromptBuilder $promptBuilder,
+        private MediaStorageService $mediaStorage
     ) {}
 
     /**
@@ -96,14 +98,31 @@ class PageImageController extends Controller
                 return response()->json(['error' => 'Image generation returned no URL'], 503);
             }
 
-            // Persist the generated image URL
-            $page->update(['image_url' => $imageUrl]);
-
-            // Record successful image generation against the user's daily cap.
+            // Record the generation against the user's daily cap as soon as Together
+            // has billed us for it — storing the file afterwards can still fail.
             TogetherAiUsage::logUsage($userId, TogetherAiUsage::SERVICE_IMAGE, config('services.together.image_model'));
 
+            // Together's URLs expire after a few hours, so keep our own copy and
+            // persist that instead — otherwise saved storybooks go blank later.
+            try {
+                $storedUrl = $this->mediaStorage->storeFromUrl(
+                    $imageUrl,
+                    MediaStorageService::imagePath($story->id, $pageNumber)
+                );
+            } catch (\RuntimeException $e) {
+                Log::error('Failed to store generated page image: '.$e->getMessage(), [
+                    'story_id' => $story->id,
+                    'page_number' => $pageNumber,
+                ]);
+
+                return response()->json(['error' => 'Image generation failed'], 503);
+            }
+
+            // Persist the stored image URL
+            $page->update(['image_url' => $storedUrl]);
+
             return response()->json([
-                'data' => ['imageUrl' => $imageUrl],
+                'data' => ['imageUrl' => $storedUrl],
             ]);
         } catch (\Exception $e) {
             \Log::error('Page image generation exception: '.$e->getMessage());
