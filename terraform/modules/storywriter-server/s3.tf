@@ -158,9 +158,11 @@ resource "aws_iam_policy" "app_content" {
           "s3:PutObject",
           "s3:DeleteObject",
           # PutObject covers starting, uploading and completing a multipart
-          # upload, but not cleaning one up. The SDK switches to multipart above
-          # 5MB, and without these an upload that dies partway cannot abort
-          # itself -- the lifecycle rule above would be left to sweep it up.
+          # upload, but not cleaning one up. Without these, an upload that dies
+          # partway cannot abort itself and the lifecycle rule above is left to
+          # sweep it up. Mostly belt and braces: the SDK only goes multipart at
+          # 16MiB (ObjectUploader::DEFAULT_MULTIPART_THRESHOLD) and a page image
+          # or a narration mp3 will not get near that.
           "s3:AbortMultipartUpload",
           "s3:ListMultipartUploadParts"
         ]
