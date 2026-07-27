@@ -80,6 +80,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Media URL Stability Window
+    |--------------------------------------------------------------------------
+    |
+    | A signed URL carries the moment it was signed, so asking for the same
+    | picture twice normally hands back two different URLs. The tablet app has
+    | no way to tell they point at the same file, so it re-downloads a cover it
+    | already has every time the bookshelf regains focus.
+    |
+    | Signing is pinned to the start of a window this many minutes long instead.
+    | Every request inside one window gets a byte-identical URL, so ordinary
+    | HTTP and image caching does its job. Longer windows cache better; shorter
+    | ones keep the signature nearer to real time. Set it to 0 to sign at the
+    | current instant, which is the old behaviour.
+    |
+    */
+
+    'media_url_window_minutes' => env('MEDIA_URL_WINDOW_MINUTES', 60),
+
+    /*
+    |--------------------------------------------------------------------------
     | Symbolic Links
     |--------------------------------------------------------------------------
     |
