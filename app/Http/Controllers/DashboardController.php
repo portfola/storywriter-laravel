@@ -70,7 +70,13 @@ class DashboardController extends Controller
 
     public function show(Story $story)
     {
+        // Security Check
+        if (! auth()->user()->isAdmin()) {
+            abort(403, 'Access Denied: Admins Only');
+        }
+
         $story->load(['user', 'pages']);
+
         return view('dashboard.stories.show', compact('story'));
     }
 
