@@ -20,9 +20,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-
-    //    Route::get('/stories/{story:slug}', [DashboardController::class, 'show'])->name('dashboard.story');
-    Route::get('/stories/{story}', [DashboardController::class, 'show'])->name('dashboard.story');
 });
 
 // Heirloom Dashboard (Tim's branch)
