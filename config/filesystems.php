@@ -64,6 +64,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Media URL Lifetime
+    |--------------------------------------------------------------------------
+    |
+    | How long a signed URL for a story illustration stays valid, in minutes.
+    | It is generous on purpose: nothing in the app notices an image URL going
+    | stale, so a child who leaves a storybook open would just watch the picture
+    | vanish. A day comfortably outlives any one sitting, and a signed URL points
+    | at a single file and can only read it, so it is a mild thing to hand out.
+    | MEDIA_URL_TTL_MINUTES shortens it without a code change.
+    |
+    */
+
+    'media_url_ttl_minutes' => env('MEDIA_URL_TTL_MINUTES', 1440),
+
+    /*
+    |--------------------------------------------------------------------------
     | Symbolic Links
     |--------------------------------------------------------------------------
     |

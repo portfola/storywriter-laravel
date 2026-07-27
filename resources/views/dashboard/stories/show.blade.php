@@ -35,21 +35,33 @@
         <div class="bg-white rounded-lg shadow-sm mb-4">
             <div class="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Page {{ $page->page_number }}</span>
-                @if($page->image_url)
-                <a href="{{ $page->image_url }}" target="_blank" class="text-xs text-gray-400 hover:text-gray-600">View image →</a>
+                {{-- image_url is a path on a private bucket, so link the signed URL --}}
+                @if($page->signed_image_url)
+                <a href="{{ $page->signed_image_url }}" target="_blank" class="text-xs text-gray-400 hover:text-gray-600">View image →</a>
                 @endif
             </div>
 
             <div class="flex gap-6 p-6">
-                @if($page->image_url)
+                @if($page->signed_image_url)
                 <div class="shrink-0">
-                    <img src="{{ $page->image_url }}" alt="Page {{ $page->page_number }} illustration"
+                    <img src="{{ $page->signed_image_url }}" alt="Page {{ $page->page_number }} illustration"
                          class="w-32 h-32 object-cover rounded-lg">
                 </div>
                 @endif
 
                 <div class="flex-1">
                     <p class="text-sm text-gray-800 leading-relaxed">{{ $page->content }}</p>
+
+                    {{-- Narration is a stored path like the illustration, so play the signed
+                         URL. Only pages that have actually been read aloud have one — nothing
+                         on this page generates narration, which would spend on ElevenLabs. --}}
+                    @if($page->signed_audio_url)
+                    <audio controls preload="none" src="{{ $page->signed_audio_url }}" class="mt-3 w-full max-w-md">
+                        Your browser cannot play this narration.
+                    </audio>
+                    @else
+                    <p class="mt-3 text-xs text-gray-400">No narration recorded for this page.</p>
+                    @endif
 
                     @if($page->illustration_prompt)
                     <p class="mt-3 text-xs text-gray-400 italic">Illustration: {{ $page->illustration_prompt }}</p>

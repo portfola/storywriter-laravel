@@ -70,10 +70,10 @@
                     </pre> -->
                     <tr>
                         <td class="px-6 py-4">
-                        <a href="{{ route('dashboard.story', $story->slug) }}" class="text-blue-600 hover:text-blue-800">
+                        <a href="{{ route('dashboard.stories.show', $story) }}" class="text-blue-600 hover:text-blue-800">
                            <img src="{{ Str::limit($story->name, 50) }}">
                         </a>   
-                        <a href="{{ route('dashboard.story', $story->slug) }}" class="text-blue-600 hover:text-blue-800">{{ $story->name }}</a>
+                        <a href="{{ route('dashboard.stories.show', $story) }}" class="text-blue-600 hover:text-blue-800">{{ $story->name }}</a>
                         </td>
                         <td class="px-6 py-4">{{ $story->user->name }}</td>
                         <td class="px-6 py-4">{{ $story->created_at->diffForHumans() }}</td>

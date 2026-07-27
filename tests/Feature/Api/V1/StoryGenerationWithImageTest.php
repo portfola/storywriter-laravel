@@ -104,12 +104,12 @@ STORY;
         $this->assertStringContainsString('Ember', $story->characters_description);
         $this->assertStringContainsString('Mia', $story->characters_description);
 
-        // Body SHOULD contain the image markdown at the top, pointing at our own
-        // stored copy rather than Together's URL, which expires after a few hours.
+        // The body is just the story now. The cover image used to be inlined at
+        // the top as markdown, which can't hold a signed URL — it reaches clients
+        // as coverImageUrl instead, and the file itself is on our own disk.
         $storedPath = "stories/{$story->id}/pages/1/image.png";
 
-        $this->assertStringStartsWith('![](', $story->body);
-        $this->assertStringContainsString($storedPath, $story->body);
+        $this->assertStringNotContainsString('![](', $story->body);
         $this->assertStringNotContainsString('api.together.ai', $story->body);
         Storage::disk('public')->assertExists($storedPath);
 
@@ -120,7 +120,7 @@ STORY;
         // Structured pages should exist
         $pages = StoryPage::where('story_id', $story->id)->orderBy('page_number')->get();
         $this->assertCount(2, $pages);
-        $this->assertStringContainsString($storedPath, $pages[0]->image_url);
+        $this->assertSame($storedPath, $pages[0]->image_url);
         $this->assertStringNotContainsString('test-image-12345.jpg', $pages[0]->image_url);
         $this->assertNull($pages[1]->image_url);
     }

@@ -23,7 +23,9 @@ class StoryController extends Controller
      */
     public function index()
     {
-        return StoryResource::collection(auth()->user()->stories);
+        // coverPage is eager-loaded so the bookshelf gets a cover image per story
+        // without a query per card.
+        return StoryResource::collection(auth()->user()->stories()->with('coverPage')->get());
     }
 
     /**
@@ -31,7 +33,7 @@ class StoryController extends Controller
      */
     public function show(Story $story)
     {
-        return StoryResource::make($story->load('pages'));
+        return StoryResource::make($story->load('pages', 'coverPage'));
     }
 
     /**
@@ -101,7 +103,7 @@ class StoryController extends Controller
             $story->update(['elevenlabs_conversation_id' => $validated['elevenlabs_conversation_id']]);
         }
 
-        return StoryResource::make($story->load('pages'));
+        return StoryResource::make($story->load('pages', 'coverPage'));
     }
 
     /**
