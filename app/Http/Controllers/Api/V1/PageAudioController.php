@@ -123,7 +123,7 @@ class PageAudioController extends Controller
         $audio = $response->body();
 
         try {
-            $audioUrl = $this->mediaStorage->storeBytes($audio, $path);
+            $audioPath = $this->mediaStorage->storeBytes($audio, $path);
         } catch (\RuntimeException $e) {
             Log::error('Failed to store page narration: '.$e->getMessage(), [
                 'story_id' => $story->id,
@@ -133,7 +133,10 @@ class PageAudioController extends Controller
             return response()->json(['error' => 'Narration storage failed'], 503);
         }
 
-        $page->update(['audio_url' => $audioUrl]);
+        // Save where the recording lives, not a URL for it — same reason as page
+        // images: a URL for private storage is only good until its signature runs
+        // out, and this row outlives that by a long way.
+        $page->update(['audio_url' => $audioPath]);
 
         // Record the spend against the user's daily cap.
         ElevenLabsUsage::logTtsRequest(text: $text, voiceId: $voiceId, modelId: $modelId);

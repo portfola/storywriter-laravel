@@ -36,16 +36,16 @@ class MediaStorageServiceTest extends TestCase
     }
 
     /** @test */
-    public function store_bytes_writes_to_the_configured_disk_and_returns_its_url()
+    public function store_bytes_writes_to_the_configured_disk_and_returns_the_path()
     {
-        $url = $this->storage->storeBytes('raw-mp3-bytes', 'stories/1/pages/1/narration.mp3');
+        $path = $this->storage->storeBytes('raw-mp3-bytes', 'stories/1/pages/1/narration.mp3');
 
         Storage::disk('public')->assertExists('stories/1/pages/1/narration.mp3');
         $this->assertSame('raw-mp3-bytes', Storage::disk('public')->get('stories/1/pages/1/narration.mp3'));
 
-        // The tablet app can't load a root-relative path, so the URL is absolute.
-        $this->assertStringStartsWith('http', $url);
-        $this->assertStringContainsString('stories/1/pages/1/narration.mp3', $url);
+        // A path, not a URL: this is what gets saved, and a URL for a private
+        // bucket stops working the moment its signature runs out.
+        $this->assertSame('stories/1/pages/1/narration.mp3', $path);
     }
 
     /** @test */
@@ -55,14 +55,14 @@ class MediaStorageServiceTest extends TestCase
             'cdn.example.com/*' => Http::response('remote-png-bytes'),
         ]);
 
-        $url = $this->storage->storeFromUrl(
+        $path = $this->storage->storeFromUrl(
             'https://cdn.example.com/expiring/image.png',
             'stories/2/pages/4/image.png'
         );
 
         Storage::disk('public')->assertExists('stories/2/pages/4/image.png');
         $this->assertSame('remote-png-bytes', Storage::disk('public')->get('stories/2/pages/4/image.png'));
-        $this->assertStringContainsString('stories/2/pages/4/image.png', $url);
+        $this->assertSame('stories/2/pages/4/image.png', $path);
     }
 
     /** @test */
@@ -99,6 +99,65 @@ class MediaStorageServiceTest extends TestCase
 
         $this->assertTrue($this->storage->exists($path));
         $this->assertSame('stored-bytes', $this->storage->get($path));
+    }
+
+    /** @test */
+    public function temporary_url_signs_a_stored_path_with_an_expiry()
+    {
+        // The "local" disk has serve enabled, so it signs URLs the same way the
+        // real S3 bucket does — close enough to prove the signing path works.
+        // Not faked, because faking a disk drops the serve flag that does the
+        // signing. Nothing is written either: signing a path doesn't read it.
+        config(['filesystems.default' => 'local', 'filesystems.media_url_ttl_minutes' => 30]);
+
+        $url = $this->storage->temporaryUrl('stories/8/pages/1/image.png');
+
+        $this->assertStringContainsString('stories/8/pages/1/image.png', $url);
+        $this->assertStringContainsString('signature=', $url);
+        $this->assertStringContainsString('expires=', $url);
+    }
+
+    /** @test */
+    public function temporary_url_honours_the_configured_lifetime()
+    {
+        config(['filesystems.default' => 'local', 'filesystems.media_url_ttl_minutes' => 90]);
+
+        $url = $this->storage->temporaryUrl('stories/9/pages/1/image.png');
+
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+        // Within a minute of 90 minutes out, allowing for the clock moving.
+        $this->assertEqualsWithDelta(now()->addMinutes(90)->timestamp, (int) $query['expires'], 60);
+    }
+
+    /** @test */
+    public function temporary_url_falls_back_to_a_plain_url_on_a_disk_that_cannot_sign()
+    {
+        // The public disk used in development can't sign, and doesn't need to —
+        // it's symlinked into public/ and served to anyone regardless.
+        $url = $this->storage->temporaryUrl('stories/10/pages/1/image.png');
+
+        $this->assertStringContainsString('stories/10/pages/1/image.png', $url);
+        $this->assertStringNotContainsString('signature=', $url);
+    }
+
+    /** @test */
+    public function temporary_url_leaves_an_absolute_url_alone()
+    {
+        // Rows written before media moved to stored paths hold a whole URL. There
+        // is nothing to sign in one of those, so it comes back as it went in.
+        $legacy = 'https://cdn.example.com/old/image.png';
+
+        $this->assertSame($legacy, $this->storage->temporaryUrl($legacy));
+    }
+
+    /** @test */
+    public function temporary_url_is_null_when_there_is_nothing_stored()
+    {
+        // A page with no illustration yet, which is every page but the cover until
+        // someone asks for one.
+        $this->assertNull($this->storage->temporaryUrl(null));
+        $this->assertNull($this->storage->temporaryUrl(''));
     }
 
     /** @test */

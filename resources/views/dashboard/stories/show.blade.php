@@ -35,15 +35,16 @@
         <div class="bg-white rounded-lg shadow-sm mb-4">
             <div class="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
                 <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Page {{ $page->page_number }}</span>
-                @if($page->image_url)
-                <a href="{{ $page->image_url }}" target="_blank" class="text-xs text-gray-400 hover:text-gray-600">View image →</a>
+                {{-- image_url is a path on a private bucket, so link the signed URL --}}
+                @if($page->signed_image_url)
+                <a href="{{ $page->signed_image_url }}" target="_blank" class="text-xs text-gray-400 hover:text-gray-600">View image →</a>
                 @endif
             </div>
 
             <div class="flex gap-6 p-6">
-                @if($page->image_url)
+                @if($page->signed_image_url)
                 <div class="shrink-0">
-                    <img src="{{ $page->image_url }}" alt="Page {{ $page->page_number }} illustration"
+                    <img src="{{ $page->signed_image_url }}" alt="Page {{ $page->page_number }} illustration"
                          class="w-32 h-32 object-cover rounded-lg">
                 </div>
                 @endif
