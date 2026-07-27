@@ -207,10 +207,10 @@ class StoryTest extends TestCase
 
     public function test_user_can_get_saved_stories(): void
     {
-        // Arrange: create a user with saved stories
+        // Arrange: create a user with two of their own stories saved
         $user = User::factory()->create();
-        $story1 = Story::factory()->for(User::factory())->create();
-        $story2 = Story::factory()->for(User::factory())->create();
+        $story1 = Story::factory()->for($user)->create();
+        $story2 = Story::factory()->for($user)->create();
         $user->savedStories()->attach([$story1->id, $story2->id]);
 
         Sanctum::actingAs($user);
@@ -225,9 +225,9 @@ class StoryTest extends TestCase
 
     public function test_user_can_save_story(): void
     {
-        // Arrange: create users and a story
+        // Arrange: create a user and a story they own
         $user = User::factory()->create();
-        $story = Story::factory()->for(User::factory())->create();
+        $story = Story::factory()->for($user)->create();
 
         Sanctum::actingAs($user);
 
@@ -244,9 +244,9 @@ class StoryTest extends TestCase
 
     public function test_user_can_unsave_story(): void
     {
-        // Arrange: create a user with a saved story
+        // Arrange: create a user with one of their own stories saved
         $user = User::factory()->create();
-        $story = Story::factory()->for(User::factory())->create();
+        $story = Story::factory()->for($user)->create();
         $user->savedStories()->attach($story->id);
 
         Sanctum::actingAs($user);
@@ -261,9 +261,9 @@ class StoryTest extends TestCase
 
     public function test_saving_story_twice_does_not_create_duplicate(): void
     {
-        // Arrange: create users and a story
+        // Arrange: create a user and a story they own
         $user = User::factory()->create();
-        $story = Story::factory()->for(User::factory())->create();
+        $story = Story::factory()->for($user)->create();
 
         Sanctum::actingAs($user);
 
@@ -280,7 +280,7 @@ class StoryTest extends TestCase
     {
         // Arrange: create a user and a story without a conversation ID
         $user = User::factory()->create();
-        $story = Story::factory()->for(User::factory())->create();
+        $story = Story::factory()->for($user)->create();
 
         Sanctum::actingAs($user);
 
@@ -296,9 +296,9 @@ class StoryTest extends TestCase
 
     public function test_save_does_not_overwrite_existing_elevenlabs_conversation_id(): void
     {
-        // Arrange: story already has a conversation ID stored
+        // Arrange: the user's own story already has a conversation ID stored
         $user = User::factory()->create();
-        $story = Story::factory()->for(User::factory())->create([
+        $story = Story::factory()->for($user)->create([
             'elevenlabs_conversation_id' => 'conv_original',
         ]);
 
