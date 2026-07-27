@@ -83,6 +83,98 @@ class RelocateExposedStoryMediaTest extends TestCase
     }
 
     /** @test */
+    public function it_moves_exposed_files_that_no_row_points_at()
+    {
+        $this->fakeBothDisks();
+
+        // Nothing deletes media when a story is deleted, and a page insert that
+        // fails after the image is stored leaves the file behind. Those files
+        // are exposed exactly like any other, so they have to move too.
+        $orphan = 'stories/4242/pages/1/image.png';
+
+        // Something under the prefix that is not media in a shape we write. It
+        // cannot repoint anything, but it is still sitting in public/storage.
+        $unrecognised = 'stories/4242/pages/1/thumbnail.webp';
+
+        Storage::disk('public')->put($orphan, 'orphan-bytes');
+        Storage::disk('public')->put($unrecognised, 'thumb-bytes');
+
+        $this->artisan('media:relocate-exposed')->assertExitCode(0);
+
+        Storage::disk('public')->assertMissing($orphan);
+        Storage::disk('public')->assertMissing($unrecognised);
+        $this->assertSame('orphan-bytes', Storage::disk('private')->get($orphan));
+        $this->assertSame('thumb-bytes', Storage::disk('private')->get($unrecognised));
+    }
+
+    /** @test */
+    public function it_fails_loudly_when_the_exposed_copy_cannot_be_deleted()
+    {
+        $this->fakeBothDisks();
+
+        $story = Story::factory()->create();
+        $audioPath = "stories/{$story->id}/pages/1/narration.mp3";
+
+        $page = StoryPage::factory()->create([
+            'story_id' => $story->id,
+            'page_number' => 1,
+            'image_url' => null,
+            'audio_url' => Storage::disk('public')->url($audioPath),
+        ]);
+
+        Storage::disk('public')->put($audioPath, 'mp3-bytes');
+
+        // The exposed files on the box were written by php-fpm; the deploy user
+        // running this may not be able to unlink them. The local disk is
+        // configured not to throw, so delete() returns false and says nothing.
+        $directory = storage_path("framework/testing/disks/public/stories/{$story->id}/pages/1");
+        chmod($directory, 0555);
+
+        try {
+            $this->artisan('media:relocate-exposed')
+                ->expectsOutputToContain('still public')
+                ->assertExitCode(1);
+
+            // The file is still exposed, so the run must not claim it moved.
+            Storage::disk('public')->assertExists($audioPath);
+
+            // The row is repointed all the same: the destination has the file,
+            // and the next run finds the exposed copy still there to delete.
+            $this->assertSame($audioPath, $page->refresh()->audio_url);
+            $this->assertSame('mp3-bytes', Storage::disk('private')->get($audioPath));
+        } finally {
+            chmod($directory, 0755);
+        }
+    }
+
+    /** @test */
+    public function it_does_not_overwrite_a_file_already_on_the_destination()
+    {
+        $this->fakeBothDisks();
+
+        $story = Story::factory()->create();
+        $imagePath = "stories/{$story->id}/pages/1/image.png";
+
+        StoryPage::factory()->create([
+            'story_id' => $story->id,
+            'page_number' => 1,
+            'image_url' => $imagePath,
+            'audio_url' => null,
+        ]);
+
+        // Writes have been going to the destination since the disk switch, so a
+        // file already there is the newer one. The stale public copy must not
+        // replace it — it just has to stop being public.
+        Storage::disk('private')->put($imagePath, 'current-bytes');
+        Storage::disk('public')->put($imagePath, 'stale-bytes');
+
+        $this->artisan('media:relocate-exposed')->assertExitCode(0);
+
+        $this->assertSame('current-bytes', Storage::disk('private')->get($imagePath));
+        Storage::disk('public')->assertMissing($imagePath);
+    }
+
+    /** @test */
     public function it_leaves_a_row_alone_when_the_file_is_not_on_the_public_disk()
     {
         $this->fakeBothDisks();
@@ -131,16 +223,16 @@ class RelocateExposedStoryMediaTest extends TestCase
     }
 
     /** @test */
-    public function it_only_touches_the_paths_it_derives_from_the_story_and_page()
+    public function it_never_reads_the_path_to_move_out_of_the_database()
     {
         $this->fakeBothDisks();
 
         $story = Story::factory()->create();
         $audioPath = "stories/{$story->id}/pages/1/narration.mp3";
 
-        // A row pointing somewhere else entirely on the public disk. The command
-        // rebuilds paths from the story id and page number and never reads the
-        // column, so this file must be left where it is.
+        // A row pointing somewhere else entirely. Paths come from listing the
+        // public disk under stories/, and the column is never read, so nothing
+        // outside that prefix can be reached through a row.
         StoryPage::factory()->create([
             'story_id' => $story->id,
             'page_number' => 1,
@@ -154,6 +246,7 @@ class RelocateExposedStoryMediaTest extends TestCase
         $this->artisan('media:relocate-exposed')->assertExitCode(0);
 
         Storage::disk('public')->assertExists('unrelated/secret.txt');
+        Storage::disk('private')->assertMissing('unrelated/secret.txt');
         Storage::disk('public')->assertMissing($audioPath);
     }
 
