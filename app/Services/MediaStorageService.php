@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -119,6 +120,10 @@ class MediaStorageService
      * is handed back untouched — it either still works (the file is on the public
      * disk it was written to) or it is already dead, and re-signing it would not
      * help either way.
+     *
+     * The same path asked for twice inside one signing window gives back the
+     * exact same URL, so a client that already has the file can reuse it — see
+     * signingWindow().
      */
     public function temporaryUrl(?string $stored): ?string
     {
@@ -130,16 +135,54 @@ class MediaStorageService
             return $stored;
         }
 
-        $ttl = now()->addMinutes((int) config('filesystems.media_url_ttl_minutes'));
+        [$signedAt, $expiresAt] = $this->signingWindow();
 
         try {
-            return Storage::disk($this->disk())->temporaryUrl($stored, $ttl);
+            // start_time is what pins S3's signature to the window: without it the
+            // SDK stamps the current second into X-Amz-Date and the URL changes on
+            // every call even with a fixed expiry. Disks that don't understand the
+            // option ignore it, and their signature is over the expiry alone.
+            return Storage::disk($this->disk())->temporaryUrl(
+                $stored,
+                $expiresAt,
+                ['start_time' => $signedAt],
+            );
         } catch (RuntimeException $e) {
             // The local "public" disk used in development can't sign URLs. It is
             // symlinked into public/ and served to anyone regardless, so a plain
             // URL gives away nothing a signed one would have protected.
             return $this->url($stored);
         }
+    }
+
+    /**
+     * When to sign a URL as of, and when to expire it.
+     *
+     * Both are pinned to the start of the current window rather than to now.
+     * Signing stamps the moment it happened into the URL, so signing at "now"
+     * means the same picture comes back under a slightly different URL every
+     * time it is asked for, and the app throws away a cover it already has and
+     * fetches it again — which the bookshelf does on every tab focus.
+     *
+     * The expiry is a whole window past the window start, so the configured
+     * lifetime is a floor rather than a ceiling: a URL handed out at the very
+     * end of a window is still good for the full TTL.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function signingWindow(): array
+    {
+        $ttl = (int) config('filesystems.media_url_ttl_minutes');
+        $window = (int) config('filesystems.media_url_window_minutes');
+
+        if ($window <= 0) {
+            return [now(), now()->addMinutes($ttl)];
+        }
+
+        $seconds = $window * 60;
+        $signedAt = Carbon::createFromTimestamp(intdiv(now()->getTimestamp(), $seconds) * $seconds);
+
+        return [$signedAt, $signedAt->copy()->addMinutes($window + $ttl)];
     }
 
     /**

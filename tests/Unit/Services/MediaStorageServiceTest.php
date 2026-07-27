@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\MediaStorageService;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -120,7 +121,11 @@ class MediaStorageServiceTest extends TestCase
     /** @test */
     public function temporary_url_honours_the_configured_lifetime()
     {
-        config(['filesystems.default' => 'local', 'filesystems.media_url_ttl_minutes' => 90]);
+        config([
+            'filesystems.default' => 'local',
+            'filesystems.media_url_ttl_minutes' => 90,
+            'filesystems.media_url_window_minutes' => 0,
+        ]);
 
         $url = $this->storage->temporaryUrl('stories/9/pages/1/image.png');
 
@@ -128,6 +133,116 @@ class MediaStorageServiceTest extends TestCase
 
         // Within a minute of 90 minutes out, allowing for the clock moving.
         $this->assertEqualsWithDelta(now()->addMinutes(90)->timestamp, (int) $query['expires'], 60);
+    }
+
+    /** @test */
+    public function temporary_url_never_expires_sooner_than_the_configured_lifetime()
+    {
+        // Signing is pinned to the start of the window, so the expiry is pushed a
+        // whole window out. A URL handed over at the tail end of a window still
+        // has the full lifetime left in it, rather than a few seconds.
+        config([
+            'filesystems.default' => 'local',
+            'filesystems.media_url_ttl_minutes' => 90,
+            'filesystems.media_url_window_minutes' => 60,
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-07-26 10:59:30Z'));
+
+        $url = $this->storage->temporaryUrl('stories/9/pages/1/image.png');
+
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+        $this->assertSame(Carbon::parse('2026-07-26 12:30:00Z')->timestamp, (int) $query['expires']);
+        $this->assertGreaterThanOrEqual(now()->addMinutes(90)->timestamp, (int) $query['expires']);
+    }
+
+    /** @test */
+    public function temporary_url_is_identical_for_the_same_file_inside_one_window()
+    {
+        // The point of the whole exercise: the bookshelf reloads on every tab
+        // focus, and an identical URL is what lets the tablet reuse the cover it
+        // already downloaded instead of fetching the same picture again.
+        config([
+            'filesystems.default' => 'local',
+            'filesystems.media_url_window_minutes' => 60,
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-07-26 10:00:04Z'));
+        $first = $this->storage->temporaryUrl('stories/11/pages/1/image.png');
+
+        $this->travelTo(Carbon::parse('2026-07-26 10:58:41Z'));
+        $second = $this->storage->temporaryUrl('stories/11/pages/1/image.png');
+
+        $this->assertSame($first, $second);
+    }
+
+    /** @test */
+    public function temporary_url_is_signed_afresh_once_the_window_rolls_over()
+    {
+        config([
+            'filesystems.default' => 'local',
+            'filesystems.media_url_window_minutes' => 60,
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-07-26 10:58:41Z'));
+        $before = $this->storage->temporaryUrl('stories/12/pages/1/image.png');
+
+        $this->travelTo(Carbon::parse('2026-07-26 11:00:02Z'));
+        $after = $this->storage->temporaryUrl('stories/12/pages/1/image.png');
+
+        $this->assertNotSame($before, $after);
+    }
+
+    /** @test */
+    public function temporary_url_signs_as_of_the_window_start()
+    {
+        // S3 stamps the signing moment into X-Amz-Date, so pinning the expiry is
+        // not enough on its own — the signing time has to be pinned too, which is
+        // what the start_time option does. Captured here rather than exercised
+        // against S3, since only the S3 driver reads it.
+        config([
+            'filesystems.default' => 'public',
+            'filesystems.media_url_ttl_minutes' => 120,
+            'filesystems.media_url_window_minutes' => 60,
+        ]);
+
+        $captured = [];
+        Storage::disk('public')->buildTemporaryUrlsUsing(
+            function ($path, $expiration, $options) use (&$captured) {
+                $captured = compact('path', 'expiration', 'options');
+
+                return 'https://bucket.example.test/'.$path;
+            }
+        );
+
+        $this->travelTo(Carbon::parse('2026-07-26 10:42:17Z'));
+
+        $this->storage->temporaryUrl('stories/13/pages/1/image.png');
+
+        $this->assertTrue(
+            Carbon::parse('2026-07-26 10:00:00Z')->equalTo($captured['options']['start_time'])
+        );
+        $this->assertTrue(
+            Carbon::parse('2026-07-26 13:00:00Z')->equalTo($captured['expiration'])
+        );
+    }
+
+    /** @test */
+    public function temporary_url_signs_at_the_current_instant_when_the_window_is_off()
+    {
+        config([
+            'filesystems.default' => 'local',
+            'filesystems.media_url_window_minutes' => 0,
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-07-26 10:00:04Z'));
+        $first = $this->storage->temporaryUrl('stories/14/pages/1/image.png');
+
+        $this->travelTo(Carbon::parse('2026-07-26 10:00:39Z'));
+        $second = $this->storage->temporaryUrl('stories/14/pages/1/image.png');
+
+        $this->assertNotSame($first, $second);
     }
 
     /** @test */
