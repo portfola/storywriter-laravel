@@ -114,6 +114,35 @@ Afterwards, changing the name means replacing the bucket, and `prevent_destroy`
 will refuse — you'd have to drop that block, apply, and copy the objects across
 by hand.
 
+#### Moving the media that was written before the bucket existed
+
+Staging and production ran for a while with `FILESYSTEM_DISK=public` and
+`php artisan storage:link`. Everything written in that time is under
+`storage/app/public/stories/...`, symlinked into `public/storage`, and served by
+nginx to anyone who guesses a story ID. Switching the disk to S3 only changes
+where *new* files go — the old ones stay exposed until they are moved.
+
+`media:relocate-exposed` moves them. It reads from the local `public` disk and
+writes to whatever the default disk now is, deletes the exposed copy, and
+repoints the row — but only for files it actually moved, so a row is never left
+pointing at a path with nothing behind it.
+
+Run it **once per environment, after the deploy that sets `FILESYSTEM_DISK=s3`**.
+Before that deploy the source and destination are the same disk, and the command
+says so and stops rather than pretending to have done something.
+
+```bash
+php artisan media:relocate-exposed --dry-run   # lists what would move
+php artisan media:relocate-exposed
+```
+
+It is safe to re-run: anything already moved is simply not found on the public
+disk the second time. A file it can't move is logged and skipped rather than
+stopping the run, so a partial run can be finished by running it again.
+
+Once every environment is done, the `storage:link` step and the public disk have
+no story media left on them.
+
 ACLs are left enabled on the bucket (`BucketOwnerPreferred`) even though
 disabling them is the more modern choice. Laravel's S3 driver names an ACL on
 every upload, and a bucket with ACLs disabled rejects those outright. The public
