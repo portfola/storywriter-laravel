@@ -62,6 +62,38 @@ class StoryPolicy
     }
 
     /**
+     * Determine whether the user can put the model on their own bookshelf.
+     *
+     * Saving is a write -- it files a story away and can stamp a conversation id
+     * onto it -- so it stays with the owner. It used to authorize on 'view',
+     * which is the ability #96 hands to every admin, so read access granted for
+     * moderation quietly carried the right to file somebody else's storybook
+     * onto an admin's own shelf. before() deliberately does not list this
+     * ability, so an admin falls through to the same ownership check as anyone
+     * else.
+     */
+    public function save(User $user, Story $story): bool
+    {
+        return $this->owns($user, $story);
+    }
+
+    /**
+     * Determine whether the user can take the model off their own bookshelf.
+     *
+     * Always allowed. Unsaving detaches the caller's own row and nobody else's,
+     * and returns no part of the story, so there is nothing here to protect.
+     *
+     * Requiring 'view' stranded anything saved before #94 closed the cross-user
+     * hole: the entry is on the user's shelf, the story is not theirs, and the
+     * ownership check they now fail is the only thing between them and tidying
+     * up their own library.
+     */
+    public function unsave(User $user, Story $story): bool
+    {
+        return true;
+    }
+
+    /**
      * Determine whether the user can update the model.
      */
     public function update(User $user, Story $story): bool
@@ -96,9 +128,9 @@ class StoryPolicy
     /**
      * A story belongs to exactly one user.
      *
-     * Admins deliberately get no bypass here. What an admin may see of a user's
-     * content is still an open decision (Fizzy #96), and until it is settled the
-     * default has to be the restrictive one.
+     * Admins deliberately get no bypass here. The one they do get is in
+     * before(), and it is limited to the two reading abilities (Fizzy #96);
+     * everything routed through this check stays with the owner.
      */
     private function owns(User $user, Story $story): bool
     {
