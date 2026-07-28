@@ -27,7 +27,8 @@ class DashboardController extends Controller
             ->latest()
             ->latest()->paginate(5, ['*'], 'users_page');
 
-        $stories = Story::with('user')
+        // coverPage is eager-loaded so each row gets a thumbnail without a query per story
+        $stories = Story::with('user', 'coverPage')
             ->select('id', 'user_id', 'name', 'slug', 'created_at')
             ->latest()
             ->paginate(5, ['*'], 'stories_page');

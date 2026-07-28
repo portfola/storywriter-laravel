@@ -70,9 +70,17 @@
                     </pre> -->
                     <tr>
                         <td class="px-6 py-4">
+                        {{-- The cover is page 1's illustration, stored as a path on a private
+                             bucket, so the thumbnail needs the signed URL. Stories whose first
+                             page has no image yet get a placeholder tile instead. --}}
                         <a href="{{ route('dashboard.stories.show', $story) }}" class="text-blue-600 hover:text-blue-800">
-                           <img src="{{ Str::limit($story->name, 50) }}">
-                        </a>   
+                           @if($story->coverPage?->signed_image_url)
+                           <img src="{{ $story->coverPage->signed_image_url }}" alt="{{ Str::limit($story->name, 50) }}"
+                                class="w-16 h-16 object-cover rounded">
+                           @else
+                           <span class="flex w-16 h-16 items-center justify-center rounded bg-gray-100 text-xs text-gray-400">No cover</span>
+                           @endif
+                        </a>
                         <a href="{{ route('dashboard.stories.show', $story) }}" class="text-blue-600 hover:text-blue-800">{{ $story->name }}</a>
                         </td>
                         <td class="px-6 py-4">{{ $story->user->name }}</td>
