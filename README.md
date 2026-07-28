@@ -114,6 +114,51 @@ Afterwards, changing the name means replacing the bucket, and `prevent_destroy`
 will refuse — you'd have to drop that block, apply, and copy the objects across
 by hand.
 
+#### Moving the media that was written before the bucket existed
+
+Staging and production ran for a while with `FILESYSTEM_DISK=public` and
+`php artisan storage:link`. Everything written in that time is under
+`storage/app/public/stories/...`, symlinked into `public/storage`, and served by
+nginx to anyone who guesses a story ID. Switching the disk to S3 only changes
+where *new* files go — the old ones stay exposed until they are moved.
+
+`media:relocate-exposed` moves them. It lists everything under `stories/` on the
+local `public` disk, copies each file to whatever the default disk now is,
+repoints the page row at it, and then deletes the exposed copy.
+
+It walks the disk rather than the `story_pages` table on purpose. What makes a
+file a problem is that it is sitting in `public/storage`, not that a row points
+at it — and plenty of them have no row. Nothing deletes media when a story is
+deleted, and a page insert that fails after the image is stored leaves the file
+behind. Walking rows would move the media whose owner still exists and quietly
+leave the rest exposed. A file with no row still gets moved; there is just
+nothing to repoint.
+
+Run it **once per environment, after the deploy that sets `FILESYSTEM_DISK=s3`**.
+Before that deploy the source and destination are the same disk, and the command
+says so and stops rather than pretending to have done something. In production it
+asks for confirmation first; `--force` skips the prompt for an unattended run.
+
+```bash
+php artisan media:relocate-exposed --dry-run   # lists what would move
+php artisan media:relocate-exposed
+```
+
+A file already present on the destination is the newer copy — writes have been
+going there since the disk switch — so the stale public one is deleted rather
+than copied over it.
+
+It is safe to re-run: anything already moved is simply not found on the public
+disk the second time. A file it can't move is logged and counted as a failure
+rather than stopping the run, so a partial run can be finished by running it
+again. **A non-zero exit means files are still exposed.** The likeliest cause is
+that the deploy user can't unlink a file php-fpm wrote — the command copies it,
+repoints the row, finds the original still there, and reports it rather than
+claiming success. Fix the permissions and run it again.
+
+Once every environment exits zero, the public disk has no story media left on
+it. `storage:link` still exposes the rest of that disk — see #89.
+
 ACLs are left enabled on the bucket (`BucketOwnerPreferred`) even though
 disabling them is the more modern choice. Laravel's S3 driver names an ACL on
 every upload, and a bucket with ACLs disabled rejects those outright. The public
