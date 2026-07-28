@@ -52,6 +52,17 @@
                 <div class="flex-1">
                     <p class="text-sm text-gray-800 leading-relaxed">{{ $page->content }}</p>
 
+                    {{-- Narration is a stored path like the illustration, so play the signed
+                         URL. Only pages that have actually been read aloud have one — nothing
+                         on this page generates narration, which would spend on ElevenLabs. --}}
+                    @if($page->signed_audio_url)
+                    <audio controls preload="none" src="{{ $page->signed_audio_url }}" class="mt-3 w-full max-w-md">
+                        Your browser cannot play this narration.
+                    </audio>
+                    @else
+                    <p class="mt-3 text-xs text-gray-400">No narration recorded for this page.</p>
+                    @endif
+
                     @if($page->illustration_prompt)
                     <p class="mt-3 text-xs text-gray-400 italic">Illustration: {{ $page->illustration_prompt }}</p>
                     @endif
