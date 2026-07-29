@@ -61,7 +61,14 @@ class SetSecurityHeaders
 
         // 'unsafe-eval' is Alpine's: it compiles every x-data and x-on expression
         // with new Function, and the standard build has no other mode. There is
-        // deliberately no 'unsafe-inline' here -- see the script-src-attr note.
+        // deliberately no 'unsafe-inline': with it, an injected <script> block
+        // runs and the policy stops most of what it exists to stop. No rendered
+        // page has one -- the only script tag on any of them is the Vite build
+        // asset, loaded by src -- and no view carries an inline handler
+        // attribute either, so there is no script-src-attr exception to make
+        // room for them. Two tests hold that line: the pages are checked for
+        // both as they render, and every Blade view is read for handler
+        // attributes.
         $scriptSrc = ["'self'", "'unsafe-eval'", ...$viteOrigins['http']];
         $styleSrc = ["'self'", "'unsafe-inline'", self::FONT_HOST, ...$viteOrigins['http']];
         $connectSrc = [
@@ -75,21 +82,6 @@ class SetSecurityHeaders
         return [
             "default-src 'self'",
             'script-src '.implode(' ', $scriptSrc),
-            // Inline event handler attributes get their own directive so that
-            // script-src can drop 'unsafe-inline', which is the part that
-            // matters: with it, any injected <script> block runs, and the policy
-            // stops most of what it exists to stop. No rendered page has an
-            // inline <script> -- the only script tag on any of them is the Vite
-            // build asset, loaded by src. Seven views do still carry handler
-            // attributes, though: the logout link in layouts/navigation.blade.php
-            // (so, every signed-in page) and the delete confirmations on the
-            // Heirloom pages. This keeps those working. Rewriting them -- Alpine
-            // @click, or a plain submit button -- would let this line go too.
-            //
-            // A browser too old for script-src-attr ignores it and falls back to
-            // script-src, where the handlers are now denied: logout stops
-            // working below Firefox 104 or Safari 15.4.
-            "script-src-attr 'unsafe-inline'",
             'style-src '.implode(' ', $styleSrc),
             "img-src 'self' data: https:",
             'font-src '.implode(' ', ["'self'", self::FONT_HOST]),

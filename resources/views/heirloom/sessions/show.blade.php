@@ -16,7 +16,8 @@
                 </span>
                 <form method="POST"
                       action="{{ route('heirloom.sessions.destroy', $session) }}"
-                      onsubmit="return confirm('Delete this session and all its transcripts and narratives?')">
+                      x-data
+                      @submit="confirm('Delete this session and all its transcripts and narratives?') || $event.preventDefault()">
                     @csrf
                     @method('DELETE')
                     <button type="submit"
@@ -86,7 +87,8 @@
                         </a>
                         <form method="POST"
                               action="{{ route('heirloom.narratives.destroy', $narrative) }}"
-                              onsubmit="return confirm('Delete this narrative?')">
+                              x-data
+                              @submit="confirm('Delete this narrative?') || $event.preventDefault()">
                             @csrf
                             @method('DELETE')
                             <button type="submit"

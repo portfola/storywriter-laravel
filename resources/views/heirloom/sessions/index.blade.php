@@ -45,7 +45,8 @@
                     </a>
                     <form method="POST"
                           action="{{ route('heirloom.sessions.destroy', $session) }}"
-                          onsubmit="return confirm('Delete this session and all its data?')">
+                          x-data
+                          @submit="confirm('Delete this session and all its data?') || $event.preventDefault()">
                         @csrf
                         @method('DELETE')
                         <button type="submit"

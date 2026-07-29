@@ -28,7 +28,8 @@
                     </a>
                     <form method="POST"
                           action="{{ route('heirloom.narratives.destroy', $narrative) }}"
-                          onsubmit="return confirm('Delete this narrative?')">
+                          x-data
+                          @submit="confirm('Delete this narrative?') || $event.preventDefault()">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="text-xs text-red-400 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 transition-colors shrink-0">
