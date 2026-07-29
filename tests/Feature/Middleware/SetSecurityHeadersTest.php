@@ -37,6 +37,16 @@ class SetSecurityHeadersTest extends TestCase
     ];
 
     /**
+     * An inline event handler attribute: onclick, onsubmit, onerror and the rest.
+     *
+     * Anchored on the whitespace before the attribute name so that Alpine's
+     * `x-on:click` and `@click` bindings do not match — those are evaluated by
+     * Alpine rather than by the browser's attribute parser, so the policy has no
+     * quarrel with them.
+     */
+    private const HANDLER_ATTRIBUTE = '/\son[a-z]+\s*=/i';
+
+    /**
      * A throwaway public directory for the duration of one test.
      */
     private string $publicPath;
@@ -180,41 +190,30 @@ class SetSecurityHeadersTest extends TestCase
         $this->assertContains("'unsafe-eval'", $this->directive('script-src'));
     }
 
-    public function test_inline_event_handler_attributes_are_still_allowed(): void
+    public function test_inline_event_handler_attributes_are_not_allowed(): void
     {
-        // The logout link in layouts/navigation.blade.php is an onclick, and it
-        // is on every signed-in page. Denying it logs nobody out -- it just
-        // breaks the button. The Heirloom delete confirmations are onsubmit.
-        $this->assertContains("'unsafe-inline'", $this->directive('script-src-attr'));
+        // No script-src-attr exception any more: the seven handler attributes it
+        // was written for are gone. Logout is a submit button and the Heirloom
+        // delete confirmations are Alpine, so nothing rendered needs one. An
+        // empty list is what the helper returns for an absent directive, which
+        // is the assertion -- with the directive back, handler attributes run
+        // again and an injected onerror is a way in.
+        $this->assertSame([], $this->directive('script-src-attr'));
     }
 
     public function test_no_rendered_page_carries_an_inline_script_block(): void
     {
-        // What makes the directive above safe to drop. If a view ever grows a
-        // <script> block, that page breaks under this policy -- and this test is
-        // the one that says so, rather than the browser console.
+        // What makes 'unsafe-inline' safe to leave out of script-src. If a view
+        // ever grows a <script> block, that page breaks under this policy -- and
+        // this test is the one that says so, rather than the browser console.
         //
-        // The one test that needs the real public directory: every layout here
-        // calls @vite, which reads the build manifest, and setUp() pointed that
-        // lookup at an empty temporary directory. This test only reads.
+        // Needs the real public directory: every layout here calls @vite, which
+        // reads the build manifest, and setUp() pointed that lookup at an empty
+        // temporary directory. This test only reads.
         $this->app->usePublicPath(base_path('public'));
 
-        $admin = User::factory()->create(['is_admin' => true]);
-
-        $pages = [
-            '/' => null,
-            '/login' => null,
-            '/dashboard' => $admin,
-            '/dashboard/analytics' => $admin,
-            '/profile' => $admin,
-        ];
-
-        foreach ($pages as $uri => $actAs) {
-            $response = $actAs ? $this->actingAs($actAs)->get($uri) : $this->get($uri);
-
-            $response->assertOk();
-
-            preg_match_all('/<script\b[^>]*>/i', (string) $response->getContent(), $matches);
+        foreach ($this->renderedPages() as $uri => $html) {
+            preg_match_all('/<script\b[^>]*>/i', $html, $matches);
 
             $inline = array_filter($matches[0], fn ($tag) => ! str_contains($tag, 'src='));
 
@@ -224,6 +223,89 @@ class SetSecurityHeadersTest extends TestCase
                 "$uri has an inline <script> block, which script-src now blocks."
             );
         }
+    }
+
+    public function test_no_rendered_page_carries_an_inline_event_handler_attribute(): void
+    {
+        // The other half: script-src-attr is gone, so an onclick or onsubmit is
+        // now dead markup. Nothing throws when the browser refuses one -- the
+        // button simply does nothing -- so this is the only thing that notices.
+        $this->app->usePublicPath(base_path('public'));
+
+        foreach ($this->renderedPages() as $uri => $html) {
+            $this->assertDoesNotMatchRegularExpression(
+                self::HANDLER_ATTRIBUTE,
+                $html,
+                "$uri has an inline event handler attribute, which the policy now blocks."
+            );
+        }
+    }
+
+    public function test_no_blade_view_declares_an_inline_event_handler_attribute(): void
+    {
+        // The rendered-page check above can only see pages a test can reach. The
+        // Heirloom views need a subject, a session and a narrative to show their
+        // delete buttons at all, and there are no factories for those yet, so
+        // the handler attributes that used to live there would render clean in a
+        // test and broken in the browser. Read the source instead: it covers
+        // every view, whatever it takes to reach one.
+        $views = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(resource_path('views'))
+        );
+
+        $offenders = [];
+
+        foreach ($views as $view) {
+            if (! $view->isFile() || ! str_ends_with($view->getFilename(), '.blade.php')) {
+                continue;
+            }
+
+            $source = (string) file_get_contents($view->getPathname());
+
+            if (preg_match(self::HANDLER_ATTRIBUTE, $source)) {
+                $offenders[] = str_replace(base_path().'/', '', $view->getPathname());
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'These views carry an inline event handler attribute, which the policy blocks. '
+            .'Use an Alpine x-on/@ binding, or a plain submit button.'
+        );
+    }
+
+    /**
+     * Every page a test can render, keyed by URI.
+     *
+     * @return array<string, string> URI => rendered HTML
+     */
+    private function renderedPages(): array
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $pages = [
+            '/' => null,
+            '/login' => null,
+            '/dashboard' => $admin,
+            '/dashboard/analytics' => $admin,
+            '/profile' => $admin,
+            '/heirloom/dashboard' => $admin,
+            '/heirloom/sessions' => $admin,
+            '/heirloom/narratives' => $admin,
+        ];
+
+        $rendered = [];
+
+        foreach ($pages as $uri => $actAs) {
+            $response = $actAs ? $this->actingAs($actAs)->get($uri) : $this->get($uri);
+
+            $response->assertOk();
+
+            $rendered[$uri] = (string) $response->getContent();
+        }
+
+        return $rendered;
     }
 
     public function test_the_vite_dev_server_is_allowed_only_while_it_is_running(): void

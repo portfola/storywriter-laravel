@@ -25,7 +25,8 @@
 
                 <form method="POST"
                       action="{{ route('heirloom.narratives.destroy', $narrative) }}"
-                      onsubmit="return confirm('Delete this narrative?')">
+                      x-data
+                      @submit="confirm('Delete this narrative?') || $event.preventDefault()">
                     @csrf
                     @method('DELETE')
                     <button type="submit"
