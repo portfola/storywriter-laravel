@@ -103,7 +103,7 @@ class CrossUserStoryAccessTest extends TestCase
     public function test_stranger_cannot_save_another_users_story_to_their_library(): void
     {
         $response = $this->actingAs($this->stranger)
-            ->postJson("/api/v1/stories/{$this->story->slug}/save");
+            ->postJson("/api/v1/stories/{$this->story->id}/save");
 
         $response->assertForbidden();
         $this->assertLeaksNothing($response->getContent());
@@ -124,7 +124,7 @@ class CrossUserStoryAccessTest extends TestCase
     public function test_stranger_cannot_save_a_conversation_id_onto_another_users_story(): void
     {
         $response = $this->actingAs($this->stranger)
-            ->postJson("/api/v1/stories/{$this->story->slug}/save", [
+            ->postJson("/api/v1/stories/{$this->story->id}/save", [
                 'elevenlabs_conversation_id' => 'conv_from_a_stranger',
             ]);
 
@@ -143,7 +143,7 @@ class CrossUserStoryAccessTest extends TestCase
         $this->stranger->savedStories()->attach($this->story->id);
 
         $response = $this->actingAs($this->stranger)
-            ->deleteJson("/api/v1/stories/{$this->story->slug}/unsave");
+            ->deleteJson("/api/v1/stories/{$this->story->id}/unsave");
 
         $response->assertNoContent();
         $this->assertLeaksNothing($response->getContent());
@@ -240,7 +240,7 @@ class CrossUserStoryAccessTest extends TestCase
         $this->assertStringContainsString($this->page->content, $response->getContent());
 
         $this->actingAs($this->victim)
-            ->postJson("/api/v1/stories/{$this->story->slug}/save")
+            ->postJson("/api/v1/stories/{$this->story->id}/save")
             ->assertOk();
 
         $this->actingAs($this->victim)

@@ -34,8 +34,10 @@ Route::prefix('v1')->group(function () {
             ->middleware('throttle:ai-generation');
 
         Route::get('/stories/saved', [StoryController::class, 'saved']);
-        Route::post('/stories/{story}/save', [StoryController::class, 'save']);
-        Route::delete('/stories/{story}/unsave', [StoryController::class, 'unsave']);
+        // Bound by id, like the image and audio routes above: the app only ever
+        // has the numeric id the generate call handed back, never the slug.
+        Route::post('/stories/{story:id}/save', [StoryController::class, 'save']);
+        Route::delete('/stories/{story:id}/unsave', [StoryController::class, 'unsave']);
         Route::apiResource('/stories', StoryController::class);
 
         Route::prefix('conversation')->group(function () {
