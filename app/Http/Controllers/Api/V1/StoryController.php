@@ -80,10 +80,28 @@ class StoryController extends Controller
 
     /**
      * Get the authenticated user's saved stories.
+     *
+     * Scoped to stories the caller owns, not just to the rows on their shelf
+     * (Fizzy #104). A bookshelf row is only ever meant to point at one of your
+     * own stories -- saving is owner-only -- so a row pointing anywhere else is
+     * leftover damage from the cross-user hole in #94. Listing it would read
+     * that story out in full, name, body, pages and signed media URLs included,
+     * to a user GET /stories/{story} turns away with a 403.
+     *
+     * Filtering on the way out rather than deleting the stray rows: a user can
+     * unsave a bad row themselves, and whether any exist in staging or
+     * production is still an open question. This holds either way.
      */
     public function saved()
     {
-        return StoryResource::collection(auth()->user()->savedStories()->orderByDesc('user_saved_stories.created_at')->get());
+        $this->authorize('viewAny', Story::class);
+
+        return StoryResource::collection(
+            auth()->user()->savedStories()
+                ->where('stories.user_id', auth()->id())
+                ->orderByDesc('user_saved_stories.created_at')
+                ->get()
+        );
     }
 
     /**

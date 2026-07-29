@@ -166,6 +166,37 @@ class CrossUserStoryAccessTest extends TestCase
         $this->assertLeaksNothing($response->getContent());
     }
 
+    public function test_saved_listing_does_not_read_out_a_stray_row_on_the_strangers_shelf(): void
+    {
+        // The row is attached by hand on purpose (Fizzy #104). Saving is
+        // owner-only now, so nothing new can land here -- but before #94 closed
+        // the cross-user hole it could, and those rows are still sitting in the
+        // pivot table. The listing endpoint used to hand them straight back.
+        $this->stranger->savedStories()->attach($this->story->id);
+
+        $response = $this->actingAs($this->stranger)->getJson('/api/v1/stories/saved');
+
+        // 200 with nothing in it: the stranger has a shelf, and the one thing on
+        // it is not theirs to read.
+        $response->assertOk();
+        $response->assertJsonCount(0, 'data');
+        $this->assertLeaksNothing($response->getContent());
+    }
+
+    public function test_the_saved_listing_still_returns_your_own_saved_stories(): void
+    {
+        // The filter has to hide the stray row without emptying the shelf.
+        $own = Story::factory()->for($this->stranger)->create(['name' => 'My Own Story']);
+        $this->stranger->savedStories()->attach([$own->id, $this->story->id]);
+
+        $response = $this->actingAs($this->stranger)->getJson('/api/v1/stories/saved');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $own->id);
+        $this->assertLeaksNothing($response->getContent());
+    }
+
     public function test_stranger_cannot_open_another_users_story_in_the_dashboard(): void
     {
         $response = $this->actingAs($this->stranger)
