@@ -232,7 +232,7 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act
-        $response = $this->postJson("/api/v1/stories/{$story->slug}/save");
+        $response = $this->postJson("/api/v1/stories/{$story->id}/save");
 
         // Assert: 200 with story data
         $response->assertOk();
@@ -240,6 +240,29 @@ class StoryTest extends TestCase
             'data' => ['id', 'name', 'slug', 'body', 'prompt', 'user_id', 'created_at', 'updated_at'],
         ]);
         $this->assertTrue($user->fresh()->savedStories()->where('story_id', $story->id)->exists());
+    }
+
+    public function test_save_and_unsave_are_addressed_by_id_not_slug(): void
+    {
+        // The app only ever holds the numeric id the generate call handed back,
+        // so it addressed these two routes by id while they were still bound by
+        // slug -- and every save 404'd, silently, for the life of the feature.
+        // These tests all passed because they were the only caller using a slug.
+        $user = User::factory()->create();
+        $story = Story::factory()->for($user)->create();
+
+        Sanctum::actingAs($user);
+
+        // Act + assert: the slug is no longer an address for these two routes
+        $this->postJson("/api/v1/stories/{$story->slug}/save")->assertNotFound();
+        $this->deleteJson("/api/v1/stories/{$story->slug}/unsave")->assertNotFound();
+
+        // Act + assert: the id is
+        $this->postJson("/api/v1/stories/{$story->id}/save")->assertOk();
+        $this->assertTrue($user->fresh()->savedStories()->where('story_id', $story->id)->exists());
+
+        $this->deleteJson("/api/v1/stories/{$story->id}/unsave")->assertNoContent();
+        $this->assertFalse($user->fresh()->savedStories()->where('story_id', $story->id)->exists());
     }
 
     public function test_user_can_unsave_story(): void
@@ -252,7 +275,7 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act
-        $response = $this->deleteJson("/api/v1/stories/{$story->slug}/unsave");
+        $response = $this->deleteJson("/api/v1/stories/{$story->id}/unsave");
 
         // Assert: 204 No Content and story is no longer saved
         $response->assertNoContent();
@@ -268,8 +291,8 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act: save the story twice
-        $this->postJson("/api/v1/stories/{$story->slug}/save");
-        $response = $this->postJson("/api/v1/stories/{$story->slug}/save");
+        $this->postJson("/api/v1/stories/{$story->id}/save");
+        $response = $this->postJson("/api/v1/stories/{$story->id}/save");
 
         // Assert: still successful and only one entry in pivot table
         $response->assertOk();
@@ -285,7 +308,7 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act: save the story with an ElevenLabs conversation ID payload
-        $response = $this->postJson("/api/v1/stories/{$story->slug}/save", [
+        $response = $this->postJson("/api/v1/stories/{$story->id}/save", [
             'elevenlabs_conversation_id' => 'conv_abc123',
         ]);
 
@@ -305,7 +328,7 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act: save with a different conversation ID
-        $response = $this->postJson("/api/v1/stories/{$story->slug}/save", [
+        $response = $this->postJson("/api/v1/stories/{$story->id}/save", [
             'elevenlabs_conversation_id' => 'conv_new',
         ]);
 

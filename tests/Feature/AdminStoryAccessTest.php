@@ -53,7 +53,7 @@ class AdminStoryAccessTest extends TestCase
         $this->assertTrue(Gate::forUser($admin)->denies('save', $story));
 
         $this->actingAs($admin)
-            ->postJson("/api/v1/stories/{$story->slug}/save")
+            ->postJson("/api/v1/stories/{$story->id}/save")
             ->assertForbidden();
 
         $this->assertFalse(
