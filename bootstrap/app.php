@@ -20,6 +20,15 @@ return Application::configure(basePath: dirname(__DIR__))
             EnsureFrontendRequestsAreStateful::class,
         ]);
 
+        // The security headers matter most on the pages a browser actually
+        // renders — the dashboard, login and profile — so the web group is the
+        // one that needs them. They stay on the API group too: they do little
+        // for a JSON response, but they cost nothing and one policy everywhere
+        // is easier to reason about than two.
+        $middleware->web(append: [
+            SetSecurityHeaders::class,
+        ]);
+
         $middleware->api(append: [
             SetSecurityHeaders::class,
         ]);
