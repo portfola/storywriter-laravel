@@ -42,6 +42,25 @@ class AdminStoryAccessTest extends TestCase
         }
     }
 
+    public function test_admin_read_access_does_not_extend_to_filing_a_story_away(): void
+    {
+        // Saving used to authorize on 'view', so the moderation grant above
+        // doubled as permission to put a child's storybook on an admin's own
+        // bookshelf (#102). Reading is not filing.
+        $admin = User::factory()->create(['is_admin' => true]);
+        $story = Story::factory()->create(['user_id' => User::factory()]);
+
+        $this->assertTrue(Gate::forUser($admin)->denies('save', $story));
+
+        $this->actingAs($admin)
+            ->postJson("/api/v1/stories/{$story->slug}/save")
+            ->assertForbidden();
+
+        $this->assertFalse(
+            $admin->fresh()->savedStories()->where('story_id', $story->id)->exists()
+        );
+    }
+
     public function test_being_an_admin_is_what_grants_the_access(): void
     {
         $stranger = User::factory()->create(['is_admin' => false]);

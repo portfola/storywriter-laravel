@@ -132,19 +132,25 @@ class CrossUserStoryAccessTest extends TestCase
         $this->assertNull($this->story->fresh()->elevenlabs_conversation_id);
     }
 
-    public function test_stranger_cannot_unsave_another_users_story(): void
+    public function test_unsaving_another_users_story_leaves_their_bookshelf_alone(): void
     {
-        // The owner has it on their own bookshelf. Unsave only detaches a pivot
-        // row, so an unguarded one lets a stranger quietly empty someone's
-        // library without ever reading a word of it.
+        // Unsave is open to anybody (#102): it detaches the caller's own pivot
+        // row, which is the only way somebody can clear an entry saved onto
+        // their shelf before #94 closed the hole. The property worth pinning is
+        // therefore not a 403 -- it is that "anybody" only ever reaches their
+        // own row, and gets none of the story back.
         $this->victim->savedStories()->attach($this->story->id);
+        $this->stranger->savedStories()->attach($this->story->id);
 
         $response = $this->actingAs($this->stranger)
             ->deleteJson("/api/v1/stories/{$this->story->slug}/unsave");
 
-        $response->assertForbidden();
+        $response->assertNoContent();
         $this->assertLeaksNothing($response->getContent());
 
+        $this->assertFalse(
+            $this->stranger->fresh()->savedStories()->where('story_id', $this->story->id)->exists()
+        );
         $this->assertTrue(
             $this->victim->fresh()->savedStories()->where('story_id', $this->story->id)->exists()
         );

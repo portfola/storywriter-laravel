@@ -91,7 +91,7 @@ class StoryController extends Controller
      */
     public function save(Request $request, Story $story)
     {
-        $this->authorize('view', $story);
+        $this->authorize('save', $story);
 
         $validated = $request->validate([
             'elevenlabs_conversation_id' => 'nullable|string|max:255',
@@ -111,7 +111,7 @@ class StoryController extends Controller
      */
     public function unsave(Story $story)
     {
-        $this->authorize('view', $story);
+        $this->authorize('unsave', $story);
 
         auth()->user()->savedStories()->detach($story->id);
 
