@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Middleware;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -20,6 +22,8 @@ use Tests\TestCase;
  */
 class SetSecurityHeadersTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
      * @var list<string>
      */
@@ -63,6 +67,30 @@ class SetSecurityHeadersTest extends TestCase
         @rmdir($this->publicPath);
 
         parent::tearDown();
+    }
+
+    /**
+     * One directive's value, looked up by name.
+     *
+     * Substring assertions are no use for the question "does script-src allow
+     * 'unsafe-inline'": the token is still a legitimate part of style-src and of
+     * script-src-attr, so a search of the whole header finds it either way.
+     *
+     * @return list<string> the directive's source list, empty if it is absent
+     */
+    private function directive(string $name, string $uri = '/'): array
+    {
+        $csp = (string) $this->get($uri)->headers->get('Content-Security-Policy');
+
+        foreach (explode(';', $csp) as $directive) {
+            $parts = preg_split('/\s+/', trim($directive), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+            if (array_shift($parts) === $name) {
+                return array_values($parts);
+            }
+        }
+
+        return [];
     }
 
     public function test_api_responses_carry_the_security_headers(): void
@@ -116,7 +144,7 @@ class SetSecurityHeadersTest extends TestCase
 
         foreach ([
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "script-src 'self' 'unsafe-eval'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: https:",
             "font-src 'self'",
@@ -144,6 +172,60 @@ class SetSecurityHeadersTest extends TestCase
         $this->assertStringContainsString("media-src 'self' https:", $csp);
     }
 
+    public function test_script_src_does_not_allow_inline_scripts(): void
+    {
+        // The whole point of the policy on a rendered page. With 'unsafe-inline'
+        // here an injected <script> block runs and the header is decoration.
+        $this->assertNotContains("'unsafe-inline'", $this->directive('script-src'));
+        $this->assertContains("'unsafe-eval'", $this->directive('script-src'));
+    }
+
+    public function test_inline_event_handler_attributes_are_still_allowed(): void
+    {
+        // The logout link in layouts/navigation.blade.php is an onclick, and it
+        // is on every signed-in page. Denying it logs nobody out -- it just
+        // breaks the button. The Heirloom delete confirmations are onsubmit.
+        $this->assertContains("'unsafe-inline'", $this->directive('script-src-attr'));
+    }
+
+    public function test_no_rendered_page_carries_an_inline_script_block(): void
+    {
+        // What makes the directive above safe to drop. If a view ever grows a
+        // <script> block, that page breaks under this policy -- and this test is
+        // the one that says so, rather than the browser console.
+        //
+        // The one test that needs the real public directory: every layout here
+        // calls @vite, which reads the build manifest, and setUp() pointed that
+        // lookup at an empty temporary directory. This test only reads.
+        $this->app->usePublicPath(base_path('public'));
+
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $pages = [
+            '/' => null,
+            '/login' => null,
+            '/dashboard' => $admin,
+            '/dashboard/analytics' => $admin,
+            '/profile' => $admin,
+        ];
+
+        foreach ($pages as $uri => $actAs) {
+            $response = $actAs ? $this->actingAs($actAs)->get($uri) : $this->get($uri);
+
+            $response->assertOk();
+
+            preg_match_all('/<script\b[^>]*>/i', (string) $response->getContent(), $matches);
+
+            $inline = array_filter($matches[0], fn ($tag) => ! str_contains($tag, 'src='));
+
+            $this->assertSame(
+                [],
+                array_values($inline),
+                "$uri has an inline <script> block, which script-src now blocks."
+            );
+        }
+    }
+
     public function test_the_vite_dev_server_is_allowed_only_while_it_is_running(): void
     {
         $withoutHotFile = (string) $this->get('/')->headers->get('Content-Security-Policy');
@@ -156,6 +238,24 @@ class SetSecurityHeadersTest extends TestCase
 
         $this->assertStringContainsString('http://localhost:5173', $withHotFile);
         $this->assertStringContainsString('ws://localhost:5173', $withHotFile);
+    }
+
+    public function test_a_stray_hot_file_is_never_read_outside_local_and_testing(): void
+    {
+        // Staging and production never run a dev server, so the file has no
+        // business widening their policy if one ever lands in the deployed
+        // public directory.
+        file_put_contents(public_path('hot'), 'http://localhost:5173');
+
+        foreach (['production', 'staging'] as $environment) {
+            $this->app->detectEnvironment(fn () => $environment);
+
+            $this->assertNotContains(
+                'http://localhost:5173',
+                $this->directive('script-src'),
+                "The hot file widened script-src in the $environment environment."
+            );
+        }
     }
 
     public function test_a_junk_hot_file_is_ignored_rather_than_written_into_the_header(): void

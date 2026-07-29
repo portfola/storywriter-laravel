@@ -59,7 +59,10 @@ class SetSecurityHeaders
     {
         $viteOrigins = $this->viteDevServerOrigins();
 
-        $scriptSrc = ["'self'", "'unsafe-inline'", "'unsafe-eval'", ...$viteOrigins['http']];
+        // 'unsafe-eval' is Alpine's: it compiles every x-data and x-on expression
+        // with new Function, and the standard build has no other mode. There is
+        // deliberately no 'unsafe-inline' here -- see the script-src-attr note.
+        $scriptSrc = ["'self'", "'unsafe-eval'", ...$viteOrigins['http']];
         $styleSrc = ["'self'", "'unsafe-inline'", self::FONT_HOST, ...$viteOrigins['http']];
         $connectSrc = [
             "'self'",
@@ -72,6 +75,21 @@ class SetSecurityHeaders
         return [
             "default-src 'self'",
             'script-src '.implode(' ', $scriptSrc),
+            // Inline event handler attributes get their own directive so that
+            // script-src can drop 'unsafe-inline', which is the part that
+            // matters: with it, any injected <script> block runs, and the policy
+            // stops most of what it exists to stop. No rendered page has an
+            // inline <script> -- the only script tag on any of them is the Vite
+            // build asset, loaded by src. Seven views do still carry handler
+            // attributes, though: the logout link in layouts/navigation.blade.php
+            // (so, every signed-in page) and the delete confirmations on the
+            // Heirloom pages. This keeps those working. Rewriting them -- Alpine
+            // @click, or a plain submit button -- would let this line go too.
+            //
+            // A browser too old for script-src-attr ignores it and falls back to
+            // script-src, where the handlers are now denied: logout stops
+            // working below Firefox 104 or Safari 15.4.
+            "script-src-attr 'unsafe-inline'",
             'style-src '.implode(' ', $styleSrc),
             "img-src 'self' data: https:",
             'font-src '.implode(' ', ["'self'", self::FONT_HOST]),
@@ -91,7 +109,15 @@ class SetSecurityHeaders
      * opens a websocket back to it for hot reload. Neither is 'self', so under
      * the production policy a local dashboard loses all its styling. Laravel
      * writes the dev server's URL to public/hot and deletes the file when the
-     * server stops, so this widens nothing on staging or production.
+     * server stops.
+     *
+     * Only local and testing look at that file at all. Staging and production
+     * never run a dev server, so reading it there buys nothing and costs two
+     * things: a stat on every single response, and a widening of the policy to
+     * whatever origin a stray public/hot happened to name. The file is
+     * gitignored and the deploys build assets rather than copy it, so a stray
+     * one is unlikely -- but "unlikely" is a poor guard when "never ask" is one
+     * line.
      *
      * The value is checked against a strict pattern before it goes anywhere near
      * a header — a stray newline in that file would otherwise 500 every response.
@@ -101,6 +127,11 @@ class SetSecurityHeaders
     protected function viteDevServerOrigins(): array
     {
         $none = ['http' => [], 'ws' => []];
+
+        if (! app()->environment(['local', 'testing'])) {
+            return $none;
+        }
+
         $hotFile = public_path('hot');
 
         if (! is_file($hotFile)) {
