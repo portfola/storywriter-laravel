@@ -32,9 +32,35 @@ class SetSecurityHeadersTest extends TestCase
         'Permissions-Policy',
     ];
 
+    /**
+     * A throwaway public directory for the duration of one test.
+     */
+    private string $publicPath;
+
+    /**
+     * Point public_path() somewhere disposable.
+     *
+     * The middleware reads public/hot to decide whether the Vite dev server is
+     * up, and `composer dev` owns the real one. A suite run alongside it would
+     * find a hot file where the tests below expect none, and the teardown would
+     * delete the file the running dev server needs. So the tests get their own
+     * public directory and never read or write the repository's.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->publicPath = sys_get_temp_dir().'/storywriter-csp-'.uniqid();
+
+        mkdir($this->publicPath);
+
+        $this->app->usePublicPath($this->publicPath);
+    }
+
     protected function tearDown(): void
     {
-        @unlink(public_path('hot'));
+        @unlink($this->publicPath.'/hot');
+        @rmdir($this->publicPath);
 
         parent::tearDown();
     }
