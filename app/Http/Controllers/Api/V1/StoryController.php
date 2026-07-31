@@ -41,19 +41,18 @@ class StoryController extends Controller
      */
     public function store(StoreStoryRequest $request)
     {
-        // 1. Get the validated data from the request
         $data = $request->validated();
 
-        // 2. If the app sends 'content' but the DB uses 'body', map it here:
-        if (isset($data['content'])) {
-            $data['body'] = $data['content'];
-        }
-
-        // 3. Force the user_id to be the currently authenticated user
-        $data['user_id'] = auth()->id();
-
-        // 4. Create the story
-        $story = Story::create($data);
+        // The request speaks the app's names, the model speaks the column
+        // names. Passing the request's own keys through instead dropped the
+        // title on the floor: 'title' is not fillable, so mass assignment
+        // discarded it and the story saved with no name (Fizzy #108). The slug
+        // comes from the model's creating hook.
+        $story = Story::create([
+            'user_id' => auth()->id(),
+            'name' => $data['title'],
+            'body' => $data['content'],
+        ]);
 
         return $story->toResource();
     }

@@ -336,4 +336,89 @@ class StoryTest extends TestCase
         $response->assertOk();
         $this->assertEquals('conv_original', $story->fresh()->elevenlabs_conversation_id);
     }
+
+    public function test_store_saves_the_title_and_builds_a_slug(): void
+    {
+        // Nothing in the app posts to the collection today, which is why this
+        // never showed up: the story saved with no name and no slug, and the
+        // write succeeded (Fizzy #108). Only the next read failed.
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        // Act
+        $response = $this->postJson('/api/v1/stories', [
+            'title' => 'The Brave Little Toaster',
+            'content' => 'Once upon a time.',
+        ]);
+
+        // Assert: the row carries both, and the slug describes the title
+        $response->assertSuccessful();
+
+        $story = Story::firstWhere('user_id', $user->id);
+        $this->assertSame('The Brave Little Toaster', $story->name);
+        $this->assertSame('Once upon a time.', $story->body);
+        $this->assertStringStartsWith('the-brave-little-toaster-', $story->slug);
+    }
+
+    public function test_renaming_a_story_rebuilds_its_slug(): void
+    {
+        // The slug is a label, not an address (Fizzy #107), so it is free to
+        // follow the title. Before this it described the first title forever.
+        $user = User::factory()->create();
+        $story = Story::factory()->for($user)->create([
+            'name' => 'Old Name',
+            'slug' => 'old-name-abcd',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        // Act
+        $response = $this->putJson("/api/v1/stories/{$story->getRouteKey()}", [
+            'name' => 'New Name',
+        ]);
+
+        // Assert
+        $response->assertOk();
+        $this->assertStringStartsWith('new-name-', $story->fresh()->slug);
+    }
+
+    public function test_an_edit_that_is_not_a_rename_leaves_the_slug_alone(): void
+    {
+        $user = User::factory()->create();
+        $story = Story::factory()->for($user)->create([
+            'name' => 'Same Name',
+            'slug' => 'same-name-abcd',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        // Act: change the body only
+        $response = $this->putJson("/api/v1/stories/{$story->getRouteKey()}", [
+            'body' => 'A different ending.',
+        ]);
+
+        // Assert
+        $response->assertOk();
+        $this->assertSame('same-name-abcd', $story->fresh()->slug);
+    }
+
+    public function test_a_title_with_no_sluggable_characters_still_gets_a_slug(): void
+    {
+        // Str::slug() gives back an empty string here, and a slug of nothing but
+        // the random suffix says nothing about the story.
+        $story = Story::factory()->create(['name' => '🚀🚀🚀', 'slug' => null]);
+
+        $this->assertStringStartsWith('story-', $story->slug);
+    }
+
+    public function test_a_slug_set_by_the_caller_is_kept(): void
+    {
+        // Story generation hands in its own slug; the hook only fills a gap.
+        $story = Story::factory()->create([
+            'name' => 'A Name',
+            'slug' => 'a-hand-picked-slug',
+        ]);
+
+        $this->assertSame('a-hand-picked-slug', $story->slug);
+    }
 }

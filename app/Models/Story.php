@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class Story extends Model
 {
@@ -27,6 +28,47 @@ class Story extends Model
     public function getRouteKeyName()
     {
         return 'slug';
+    }
+
+    /**
+     * Keep the slug on the model, so no caller has to remember to set one
+     * (Fizzy #108).
+     *
+     * Only one of the two write paths ever built a slug. A story created
+     * through POST /stories saved with an empty one, and a rename left the old
+     * title in it forever. Both are the same omission, so both are handled
+     * here rather than in the two controllers.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $story) {
+            if (blank($story->slug)) {
+                $story->slug = self::makeSlug($story->name);
+            }
+        });
+
+        static::updating(function (self $story) {
+            // A caller that sets a slug by hand keeps it; otherwise a rename
+            // rebuilds it, which is safe now the slug is a label and not an
+            // address (Fizzy #107).
+            if ($story->isDirty('name') && ! $story->isDirty('slug')) {
+                $story->slug = self::makeSlug($story->name);
+            }
+        });
+    }
+
+    /**
+     * A readable slug for a story title, with a short random suffix so two
+     * stories of the same name do not collide on the unique column.
+     *
+     * Str::slug() returns an empty string for a title that is all emoji or all
+     * punctuation, hence the fallback -- a slug of just the suffix says nothing.
+     */
+    public static function makeSlug(?string $name): string
+    {
+        $base = Str::slug((string) $name) ?: 'story';
+
+        return $base.'-'.Str::random(4);
     }
 
     public function user(): BelongsTo

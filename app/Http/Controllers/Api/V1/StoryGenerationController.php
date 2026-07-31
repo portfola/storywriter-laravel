@@ -12,7 +12,6 @@ use App\Support\Analytics;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class StoryGenerationController extends Controller
 {
@@ -226,7 +225,6 @@ class StoryGenerationController extends Controller
             $storyEntry = Story::create([
                 'user_id' => auth()->id() ?? 1,
                 'name' => $parsed['title'],
-                'slug' => Str::slug($parsed['title'] ?: 'story').'-'.Str::random(4),
                 'body' => $storyText,
                 'prompt' => $validated['transcript'],
                 'characters_description' => $parsed['characters'],
