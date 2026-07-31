@@ -63,7 +63,7 @@ class CrossUserStoryAccessTest extends TestCase
     public function test_stranger_cannot_read_another_users_story(): void
     {
         $response = $this->actingAs($this->stranger)
-            ->getJson("/api/v1/stories/{$this->story->slug}");
+            ->getJson("/api/v1/stories/{$this->story->id}");
 
         $response->assertForbidden();
         $this->assertLeaksNothing($response->getContent());
@@ -72,7 +72,7 @@ class CrossUserStoryAccessTest extends TestCase
     public function test_stranger_cannot_update_another_users_story(): void
     {
         $response = $this->actingAs($this->stranger)
-            ->putJson("/api/v1/stories/{$this->story->slug}", [
+            ->putJson("/api/v1/stories/{$this->story->id}", [
                 'name' => 'Hijacked',
                 'body' => 'Overwritten by somebody else.',
             ]);
@@ -91,7 +91,7 @@ class CrossUserStoryAccessTest extends TestCase
     public function test_stranger_cannot_delete_another_users_story(): void
     {
         $response = $this->actingAs($this->stranger)
-            ->deleteJson("/api/v1/stories/{$this->story->slug}");
+            ->deleteJson("/api/v1/stories/{$this->story->id}");
 
         $response->assertForbidden();
         $this->assertLeaksNothing($response->getContent());
@@ -233,7 +233,7 @@ class CrossUserStoryAccessTest extends TestCase
         // The control. Without it, a policy that denied everybody would make
         // every assertion above pass while breaking the whole app.
         $response = $this->actingAs($this->victim)
-            ->getJson("/api/v1/stories/{$this->story->slug}");
+            ->getJson("/api/v1/stories/{$this->story->id}");
 
         $response->assertOk();
         $response->assertJsonPath('data.slug', $this->story->slug);
@@ -244,7 +244,7 @@ class CrossUserStoryAccessTest extends TestCase
             ->assertOk();
 
         $this->actingAs($this->victim)
-            ->putJson("/api/v1/stories/{$this->story->slug}", ['name' => 'Renamed By Its Owner'])
+            ->putJson("/api/v1/stories/{$this->story->id}", ['name' => 'Renamed By Its Owner'])
             ->assertOk();
 
         $this->assertSame('Renamed By Its Owner', $this->story->fresh()->name);

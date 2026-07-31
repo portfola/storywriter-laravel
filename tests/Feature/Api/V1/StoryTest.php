@@ -43,8 +43,8 @@ class StoryTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        // Act: GET by slug (route key)
-        $response = $this->getJson('/api/v1/stories/'.$story->slug);
+        // Act: GET by id (route key)
+        $response = $this->getJson('/api/v1/stories/'.$story->id);
 
         // Assert: 200 with the full resource shape and correct values
         $response->assertOk();
@@ -72,7 +72,7 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act
-        $response = $this->getJson('/api/v1/stories/'.$story->slug);
+        $response = $this->getJson('/api/v1/stories/'.$story->id);
 
         // Assert: audioUrl is part of the page shape, and null until narration is stored
         $response->assertOk();
@@ -103,7 +103,7 @@ class StoryTest extends TestCase
         Sanctum::actingAs($user);
 
         // Act
-        $response = $this->getJson('/api/v1/stories/'.$story->slug);
+        $response = $this->getJson('/api/v1/stories/'.$story->id);
 
         // Assert: the client gets something it can actually fetch, not the raw
         // path — a path on a private bucket loads nothing.
@@ -263,6 +263,49 @@ class StoryTest extends TestCase
 
         $this->deleteJson("/api/v1/stories/{$story->id}/unsave")->assertNoContent();
         $this->assertFalse($user->fresh()->savedStories()->where('story_id', $story->id)->exists());
+    }
+
+    public function test_a_story_is_addressed_by_id_not_slug(): void
+    {
+        // The slug stopped being an address for the rest of the resource too
+        // (Fizzy #107). It is a label on the row now: renaming a story leaves it
+        // describing the old name, so it was never safe to hand out as a link.
+        $user = User::factory()->create();
+        $story = Story::factory()->for($user)->create();
+
+        Sanctum::actingAs($user);
+
+        // Act + assert: the slug reaches nothing
+        $this->getJson("/api/v1/stories/{$story->slug}")->assertNotFound();
+        $this->putJson("/api/v1/stories/{$story->slug}", ['name' => 'Renamed'])->assertNotFound();
+        $this->deleteJson("/api/v1/stories/{$story->slug}")->assertNotFound();
+
+        // A 404 on the update must be a refusal, not a 404 rendered after the write
+        $this->assertSame($story->name, $story->fresh()->name);
+
+        // Act + assert: the id reaches all three
+        $this->getJson("/api/v1/stories/{$story->id}")->assertOk();
+        $this->putJson("/api/v1/stories/{$story->id}", ['name' => 'Renamed'])->assertOk();
+        $this->assertSame('Renamed', $story->fresh()->name);
+
+        $this->deleteJson("/api/v1/stories/{$story->id}")->assertNoContent();
+        $this->assertDatabaseMissing('stories', ['id' => $story->id]);
+    }
+
+    public function test_renaming_a_story_leaves_it_reachable(): void
+    {
+        // The reason ids won (#107): the slug is never rebuilt on rename, so the
+        // choice used to be a stale address or a broken one. An id is neither.
+        $user = User::factory()->create();
+        $story = Story::factory()->for($user)->create(['name' => 'The Brave Little Fox']);
+
+        Sanctum::actingAs($user);
+
+        $this->putJson("/api/v1/stories/{$story->id}", ['name' => 'The Bold Little Fox'])->assertOk();
+
+        $this->getJson("/api/v1/stories/{$story->id}")
+            ->assertOk()
+            ->assertJsonPath('data.name', 'The Bold Little Fox');
     }
 
     public function test_user_can_unsave_story(): void
