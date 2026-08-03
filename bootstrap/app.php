@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureEmailIsVerified;
+use App\Http\Middleware\EnsureRegistrationIsEnabled;
 use App\Http\Middleware\LogStoryActivity;
 use App\Http\Middleware\SetSecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'verified' => EnsureEmailIsVerified::class,
             'log.story' => LogStoryActivity::class,
+            'registration.enabled' => EnsureRegistrationIsEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

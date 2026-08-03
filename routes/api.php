@@ -19,7 +19,8 @@ Route::prefix('v1')->group(function () {
         // Credentialed login (Hash::check), shared by the StoryWriter app and
         // Heirloom's login page.
         Route::post('/login', LoginController::class);
-        Route::post('/register', RegisterController::class);
+        Route::post('/register', RegisterController::class)
+            ->middleware('registration.enabled');
     });
 
     // Protected routes

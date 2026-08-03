@@ -208,6 +208,20 @@ jobs:
           ENVEOF
 
           echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+          # Production is invite-only for the pre-release. The app already hides
+          # sign-up behind "Request Invite" (PRERELEASE_GATE in the frontend
+          # deploy), but that gate is client-side only -- anyone could still POST
+          # straight to /api/v1/auth/register. This closes it on the server.
+          #
+          # Invited accounts are created with `php artisan users:create` on the
+          # box. "Request Invite" goes to labs.storywriter.net/request-access,
+          # which is a Ghost members form on a different server and does not
+          # touch this API, so it keeps working.
+          #
+          # WHEN THE PRE-RELEASE ENDS: dropping PRERELEASE_GATE from the frontend
+          # workflow is not enough. Sign-up will 403 until this is flipped back
+          # to true. Change both together.
+          echo "REGISTRATION_ENABLED=false" >> .env
           echo "AWS_SSM_ENABLED=true" >> .env
           echo "AWS_DEFAULT_REGION=us-east-1" >> .env
           echo "POSTHOG_API_KEY=${{ vars.POSTHOG_API_KEY }}" >> .env

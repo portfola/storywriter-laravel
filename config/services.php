@@ -71,10 +71,19 @@ return [
     | limiter in AppServiceProvider), so password guessing and signup spam
     | cost something.
     |
+    | 'registration_enabled' closes both signup paths -- the JSON endpoint and
+    | the Breeze web form -- when false. It defaults to true, so local dev and
+    | tests are unchanged; both deployed environments set it false in their
+    | workflows. Staging has no reason to accept accounts from the public, and
+    | its AI routes spend real Together AI and ElevenLabs budget. Production is
+    | invite-only for the pre-release: the app's "Request Invite" button is a
+    | client-side gate, and this is the server-side half of it.
+    |
     */
 
     'auth' => [
         'rate_limit_per_minute' => (int) env('AUTH_RATE_LIMIT_PER_MINUTE', 10),
+        'registration_enabled' => filter_var(env('REGISTRATION_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
     /*
