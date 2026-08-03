@@ -12,10 +12,17 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
+    // Both verbs are throttled, not just the POST: a scripted signup has to GET
+    // this page first to pick up a CSRF token, so rating only the POST would
+    // leave the cheap half of the loop free. The 'auth' limiter is the same
+    // per-IP ceiling the JSON auth endpoints use, so the two signup paths can't
+    // be played off against each other.
     Route::get('register', [RegisteredUserController::class, 'create'])
+        ->middleware(['registration.enabled', 'throttle:auth'])
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware(['registration.enabled', 'throttle:auth']);
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');

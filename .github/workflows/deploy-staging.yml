@@ -189,6 +189,9 @@ jobs:
           ENVEOF
 
           echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
+          # Staging accepts no public signups. Create test accounts with
+          # `php artisan tinker` on the box. Existing accounts still log in.
+          echo "REGISTRATION_ENABLED=false" >> .env
           echo "AWS_SSM_ENABLED=true" >> .env
           echo "AWS_DEFAULT_REGION=us-east-1" >> .env
           echo "POSTHOG_API_KEY=${{ vars.POSTHOG_API_KEY }}" >> .env

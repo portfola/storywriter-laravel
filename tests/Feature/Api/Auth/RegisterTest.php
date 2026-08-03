@@ -101,6 +101,40 @@ class RegisterTest extends TestCase
         $response->assertJsonValidationErrors(['email']);
     }
 
+    public function test_registration_is_refused_when_registration_is_disabled(): void
+    {
+        config(['services.auth.registration_enabled' => false]);
+
+        $response = $this->postJson('/api/v1/auth/register', [
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'terms_accepted' => true,
+        ]);
+
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('users', ['email' => 'ada@example.com']);
+    }
+
+    public function test_existing_users_can_still_log_in_when_registration_is_disabled(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'ada@example.com',
+            'password' => bcrypt('password123'),
+        ]);
+
+        config(['services.auth.registration_enabled' => false]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonStructure(['token', 'user']);
+    }
+
     public function test_new_user_can_log_in_after_registering(): void
     {
         $this->postJson('/api/v1/auth/register', [
