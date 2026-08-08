@@ -110,7 +110,7 @@ class SignedMediaUrlContractTest extends TestCase
         Storage::disk('public')->put($imagePath, 'png-bytes');
 
         $response = $this->actingAs($user)
-            ->getJson("/api/v1/stories/{$story->slug}")
+            ->getJson("/api/v1/stories/{$story->id}")
             ->assertOk();
 
         $page = $response->json('data.pages.0');

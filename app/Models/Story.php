@@ -24,10 +24,11 @@ class Story extends Model
         'elevenlabs_conversation_id',
     ];
 
-    public function getRouteKeyName()
-    {
-        return 'slug';
-    }
+    // No getRouteKeyName() here on purpose (Fizzy #107). A story is addressed by
+    // its id everywhere -- API and dashboard alike. The slug was never rebuilt
+    // when a title changed, so it either described the old name forever or broke
+    // every link that had already been handed out. It stays on the row as a
+    // human-readable label; it is not an address.
 
     public function user(): BelongsTo
     {
