@@ -379,4 +379,28 @@ class StoryTest extends TestCase
         $response->assertOk();
         $this->assertEquals('conv_original', $story->fresh()->elevenlabs_conversation_id);
     }
+
+    public function test_store_saves_the_title_and_the_content(): void
+    {
+        // Nothing in the app posts to the collection today, which is why this went
+        // unseen: 'title' is not fillable, so mass assignment threw it away and the
+        // insert failed the NOT NULL on 'name'. Every call answered 500, and no row
+        // was written at all (Fizzy #108).
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        // Act
+        $response = $this->postJson('/api/v1/stories', [
+            'title' => 'The Brave Little Toaster',
+            'content' => 'Once upon a time.',
+        ]);
+
+        // Assert: the row carries both, under the column names
+        $response->assertCreated();
+
+        $story = Story::firstWhere('user_id', $user->id);
+        $this->assertNotNull($story);
+        $this->assertSame('The Brave Little Toaster', $story->name);
+        $this->assertSame('Once upon a time.', $story->body);
+    }
 }
