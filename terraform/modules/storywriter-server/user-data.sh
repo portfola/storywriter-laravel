@@ -56,6 +56,7 @@ apt-get install -y \
     nginx \
     certbot \
     python3-certbot-nginx \
+    python3-certbot-dns-route53 \
     postgresql \
     postgresql-contrib
 
@@ -210,8 +211,22 @@ SUDOERS_EOF
 chmod 440 /etc/sudoers.d/deploy
 
 # Set up SSL certificate with Let's Encrypt
+#
+# The domain is proved with a DNS challenge through Route 53, not the HTTP one.
+# The HTTP challenge needs port 80 reachable from any Let's Encrypt validation
+# server, which would keep the security group open to the whole internet forever
+# just to renew a certificate. A TXT record in our own hosted zone proves the
+# same thing and needs nothing inbound at all.
+#
+# --installer nginx still writes the nginx server block and the HTTP redirect;
+# only the authenticator changed. The choice is recorded in the renewal config
+# under /etc/letsencrypt/renewal/, so certbot's own timer renews the same way
+# without any further arguments. Permission comes from the instance profile
+# (see certbot_route53 in iam.tf), so there are no credentials on disk.
 echo "==> Setting up SSL certificate for $DOMAIN_NAME..."
-certbot --nginx \
+certbot \
+  --authenticator dns-route53 \
+  --installer nginx \
   -d $DOMAIN_NAME \
   --non-interactive \
   --agree-tos \
@@ -220,6 +235,12 @@ certbot --nginx \
   || echo "WARNING: Certbot failed - SSL can be configured manually later"
 
 echo "SSL certificate setup attempted"
+
+# Prove renewal works now, while someone is watching the boot log, rather than
+# finding out 60 days from now that the instance profile is missing a permission.
+echo "==> Checking certificate renewal (dry run)..."
+certbot renew --dry-run \
+  || echo "WARNING: Certbot renewal dry run failed - check the ${app_name}-certbot-route53 IAM policy is attached to this instance's role"
 
 # Create storage directories that Laravel needs
 mkdir -p $APP_DIR/storage/app/public
