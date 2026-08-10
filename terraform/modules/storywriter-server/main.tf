@@ -40,9 +40,17 @@ resource "aws_security_group" "server" {
   description = "Security group for ${var.app_name}"
   vpc_id      = data.aws_vpc.selected.id
 
-  # SSH access - restricted to specific IPs for security
+  # SSH access. This list is for the addresses people SSH from; deploys are not
+  # in it. A GitHub-hosted runner's address is not knowable in advance, so the
+  # deploy workflow opens port 22 for its own /32 at the start of a run and
+  # revokes it at the end (see .github/workflows/deploy-*.yml).
+  #
+  # Those runner rules are added out of band. Because this is an inline `ingress`
+  # block, Terraform treats them as drift and removes them on the next apply --
+  # which cleans up after a run that died before it could revoke, but also means
+  # an apply during a deploy will shut the door on it.
   ingress {
-    description = "SSH from trusted sources"
+    description = "SSH from allowed_ssh_cidrs (deploys add a temporary runner rule)"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
