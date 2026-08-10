@@ -49,22 +49,26 @@ resource "aws_security_group" "server" {
     cidr_blocks = var.allowed_ssh_cidrs
   }
 
-  # HTTP access
+  # Web access. Production keeps the default of the whole internet; staging can
+  # be narrowed to a list of testers, because every request it answers spends
+  # real Together AI and ElevenLabs money.
+  #
+  # Nothing here needs port 80 open to the world any more: the certificate is
+  # renewed over a Route 53 DNS challenge (see user-data.sh), not the HTTP one.
   ingress {
-    description = "HTTP"
+    description = "HTTP from allowed_web_cidrs"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.allowed_web_cidrs
   }
 
-  # HTTPS access
   ingress {
-    description = "HTTPS"
+    description = "HTTPS from allowed_web_cidrs"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.allowed_web_cidrs
   }
 
   # Allow all outbound traffic

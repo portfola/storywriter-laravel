@@ -203,6 +203,61 @@ Unlike the frontend, this repo has no version fields to keep in sync — the
 `vX.Y.Z` git tag **is** the version. Tags follow semver and are shared with
 the frontend's numbering only in spirit; the two repos version independently.
 
+### Who can reach staging-api
+
+`staging-api.storywriter.net` answers ports 80 and 443 to whoever is listed in
+`allowed_web_cidrs`
+([`terraform/modules/storywriter-server`](terraform/modules/storywriter-server)).
+It defaults to the whole internet, and production stays that way on purpose —
+production is the API real apps call. Staging is the one worth narrowing,
+because every request it answers spends real Together AI and ElevenLabs money,
+and the hostname is the only thing standing between a stranger and that bill.
+
+Locking the staging **front end** did not cover this. The app runs in the
+tester's own browser and calls the API straight from their machine, so the box
+has to answer the tester's address, not a CloudFront edge. That means the list
+is a list of people, not of our own infrastructure.
+
+Two things used to need the site open to everybody, and no longer do:
+
+- **Certificate renewal.** Certbot proves the domain with a Route 53 DNS
+  challenge (a `_acme-challenge` TXT record in our own zone) instead of the HTTP
+  one, so port 80 does not have to be reachable from Let's Encrypt's validation
+  servers. The instance profile carries the permission — see `certbot_route53`
+  in [`iam.tf`](terraform/modules/storywriter-server/iam.tf) — so there are no
+  credentials on the box.
+- **The deploy health check.** It now runs `curl` on the server over the SSH
+  session the deploy already has open, resolving the real hostname to
+  `127.0.0.1`. It still checks the certificate and the right nginx server block;
+  it just no longer needs the runner to be allowed in.
+
+To narrow staging, put the list in the gitignored
+`terraform/environments/staging/terraform.tfvars` and apply:
+
+```hcl
+allowed_web_cidrs = ["203.0.113.4/32", "198.51.100.0/24"]
+```
+
+Before you do, three things are worth checking:
+
+- **Heirloom staging calls this same API from its users' browsers.** Anyone
+  testing Heirloom needs their address on this list too, or Heirloom staging
+  stops working for them. That is a decision to make, not a surprise to
+  discover.
+- **The frontend's `verify-deployment` job.** It runs on a GitHub runner and is
+  already not on the list.
+- **The boxes that are already running.** `user-data.sh` only runs at first
+  boot, so an existing instance still renews over HTTP. Switch it over before
+  port 80 closes, or the certificate quietly fails to renew ~60 days later:
+
+  ```bash
+  ssh deploy@staging-api.storywriter.net
+  sudo apt-get install -y python3-certbot-dns-route53
+  sudo certbot certonly --authenticator dns-route53 --cert-name staging-api.storywriter.net \
+    -d staging-api.storywriter.net --non-interactive
+  sudo certbot renew --dry-run    # must pass before you close port 80
+  ```
+
 ### Cutting a release
 
 1. On an up-to-date `main` with a clean working tree, make sure the suite

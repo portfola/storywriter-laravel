@@ -76,6 +76,16 @@ variable "allowed_ssh_cidrs" {
   }
 }
 
+variable "allowed_web_cidrs" {
+  description = "CIDR blocks allowed to reach the site on ports 80 and 443. Defaults to the whole internet, which is what production wants. Narrow it on staging so strangers cannot spend Together AI and ElevenLabs money -- but remember the app runs in the tester's browser, so the list needs every tester's own address, and the Heirloom staging front end calls this same API from its users' browsers too."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+  validation {
+    condition     = length(var.allowed_web_cidrs) > 0
+    error_message = "allowed_web_cidrs cannot be empty -- an empty list makes the site unreachable by anyone, including the deploy health check. Use [\"0.0.0.0/0\"] if you really do want it public."
+  }
+}
+
 variable "admin_email" {
   description = "Email address for Let's Encrypt SSL certificate notifications"
   type        = string
