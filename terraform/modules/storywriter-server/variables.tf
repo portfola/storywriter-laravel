@@ -67,13 +67,29 @@ variable "route53_zone_id" {
 }
 
 variable "allowed_ssh_cidrs" {
-  description = "List of CIDR blocks allowed to SSH into the server. Use specific IPs/ranges instead of 0.0.0.0/0 for security."
+  description = "CIDR blocks allowed to SSH into the server. Deploys do not need an entry here -- the deploy workflow opens port 22 for its own runner and closes it again -- so this should hold only the addresses real people SSH from."
   type        = list(string)
   default     = []
   validation {
     condition     = length(var.allowed_ssh_cidrs) > 0
-    error_message = "You must specify at least one CIDR block for SSH access. Do not use 0.0.0.0/0 in production."
+    error_message = "You must specify at least one CIDR block for SSH access."
   }
+  validation {
+    condition     = !contains(var.allowed_ssh_cidrs, "0.0.0.0/0") && !contains(var.allowed_ssh_cidrs, "::/0")
+    error_message = "allowed_ssh_cidrs must not open port 22 to the internet. Deploys open port 22 for their own runner and close it again, so 0.0.0.0/0 is no longer needed. Set the GitHub environment secrets AWS_DEPLOY_ROLE_ARN and DEPLOY_SECURITY_GROUP_ID before applying this, or the next deploy cannot get in."
+  }
+}
+
+variable "github_deploy_repository" {
+  description = "GitHub repository, as owner/repo, whose deploy workflow may open port 22 on this server's security group. Leave empty to not create the role at all."
+  type        = string
+  default     = ""
+}
+
+variable "github_deploy_environment" {
+  description = "Name of the GitHub Environment the deploy job runs in (the `environment:` key on the job). The trust policy is scoped to it, so a job without that environment cannot assume the role. Required when github_deploy_repository is set."
+  type        = string
+  default     = ""
 }
 
 variable "admin_email" {

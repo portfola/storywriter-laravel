@@ -2,6 +2,20 @@ name: Deploy to Production
 
 # Production deploys only from semver tags (v*) or a manual dispatch on a
 # tag; merges to main deploy staging via deploy-staging.yml.
+#
+# Port 22 on the production box is shut to everyone but the addresses in
+# `allowed_ssh_cidrs` (terraform/modules/storywriter-server). A runner's address
+# is not one of them, so the deploy job opens the port for its own /32 and shuts
+# it again -- see the "Open SSH access" / "Close SSH access" steps below.
+#
+# That needs two secrets in the repo's `production` GitHub environment, both of
+# them `terraform output` values from terraform/environments/prod:
+#   - AWS_DEPLOY_ROLE_ARN        (output github_deploy_role_arn)
+#   - DEPLOY_SECURITY_GROUP_ID   (output security_group_id)
+#
+# While either is unset the job skips those steps and deploys exactly as it did
+# before, so this workflow can merge ahead of the Terraform apply. Once port 22
+# is actually locked down, a deploy without the secrets can no longer connect.
 on:
   push:
     tags:
@@ -20,6 +34,7 @@ concurrency:
 env:
   APP_DIR: /var/www/storywriter-prod
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  AWS_REGION: us-east-1
 
 jobs:
   build:
@@ -110,11 +125,65 @@ jobs:
     needs: build
     environment: production
 
+    # id-token: write is what lets the job exchange its OIDC token for the
+    # deploy role. The other two are the defaults this block would otherwise
+    # take away; the job still needs them to pull the build artifact.
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+
     steps:
       - name: Download deployment artifact
         uses: actions/download-artifact@v4
         with:
           name: deployment-artifact
+
+      - name: Check just-in-time SSH access is configured
+        id: jit
+        env:
+          ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          SG_ID: ${{ secrets.DEPLOY_SECURITY_GROUP_ID }}
+        run: |
+          if [ -n "${ROLE_ARN}" ] && [ -n "${SG_ID}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Will open port 22 for this runner only"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::AWS_DEPLOY_ROLE_ARN / DEPLOY_SECURITY_GROUP_ID are not set on the production environment — this deploy needs port 22 to already allow the runner."
+          fi
+
+      - name: Configure AWS credentials
+        if: steps.jit.outputs.enabled == 'true'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: deploy-prod-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Open SSH access for this runner
+        id: open-ssh
+        if: steps.jit.outputs.enabled == 'true'
+        env:
+          SG_ID: ${{ secrets.DEPLOY_SECURITY_GROUP_ID }}
+        run: |
+          set -euo pipefail
+
+          RUNNER_IP=$(curl -fsS --retry 3 --max-time 10 https://checkip.amazonaws.com | tr -d '[:space:]')
+          if ! printf '%s' "${RUNNER_IP}" | grep -Eq '^[0-9]+(\.[0-9]+){3}$'; then
+            echo "::error::Could not read this runner's public IPv4 address"
+            exit 1
+          fi
+
+          # Record the CIDR before opening, not after: if authorize fails halfway
+          # the close step below still knows what to revoke.
+          echo "cidr=${RUNNER_IP}/32" >> "$GITHUB_OUTPUT"
+
+          aws ec2 authorize-security-group-ingress \
+            --group-id "${SG_ID}" \
+            --ip-permissions "IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=[{CidrIp=${RUNNER_IP}/32,Description='github-actions deploy run ${{ github.run_id }}'}]"
+
+          echo "✅ Port 22 open for this runner"
 
       - name: Setup SSH
         run: |
@@ -312,6 +381,25 @@ jobs:
           else
             echo "✗ Health check failed (HTTP $HTTP_CODE)"
             echo "::error::Application is not responding correctly. Deployment has failed."
+            exit 1
+          fi
+
+      # Runs even when the deploy failed or was cancelled: a run that ends with
+      # the port still open is worse than a run that failed.
+      - name: Close SSH access
+        if: always() && steps.open-ssh.outputs.cidr != ''
+        env:
+          SG_ID: ${{ secrets.DEPLOY_SECURITY_GROUP_ID }}
+          CIDR: ${{ steps.open-ssh.outputs.cidr }}
+        run: |
+          if aws ec2 revoke-security-group-ingress \
+               --group-id "${SG_ID}" --protocol tcp --port 22 --cidr "${CIDR}" 2>/tmp/revoke.err; then
+            echo "✅ Port 22 closed again"
+          elif grep -q "InvalidPermission.NotFound" /tmp/revoke.err; then
+            echo "✅ Port 22 was already closed"
+          else
+            cat /tmp/revoke.err
+            echo "::error::Could not close port 22 for ${CIDR} — revoke that rule on ${SG_ID} by hand."
             exit 1
           fi
 
