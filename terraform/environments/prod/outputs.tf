@@ -17,8 +17,13 @@ output "public_dns" {
 }
 
 output "security_group_id" {
-  description = "ID of the security group"
+  description = "ID of the security group. This is the value for the deploy workflow's DEPLOY_SECURITY_GROUP_ID secret."
   value       = module.storywriter_server.security_group_id
+}
+
+output "github_deploy_role_arn" {
+  description = "ARN of the role the deploy workflow assumes to open port 22 for its runner. This is the value for the deploy workflow's AWS_DEPLOY_ROLE_ARN secret."
+  value       = module.storywriter_server.github_deploy_role_arn
 }
 
 output "ssh_command" {

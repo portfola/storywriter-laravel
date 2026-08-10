@@ -203,6 +203,38 @@ Unlike the frontend, this repo has no version fields to keep in sync — the
 `vX.Y.Z` git tag **is** the version. Tags follow semver and are shared with
 the frontend's numbering only in spirit; the two repos version independently.
 
+### How a deploy gets in on port 22
+
+Port 22 is not open to the internet. `allowed_ssh_cidrs`
+([`terraform/modules/storywriter-server`](terraform/modules/storywriter-server))
+lists the addresses **people** SSH from, and Terraform refuses `0.0.0.0/0`
+outright. A deploy runs on a GitHub-hosted runner picked out of thousands of
+addresses, so it cannot be on that list — instead each deploy job opens port 22
+for its own `/32`, deploys, and revokes the rule again in a step that runs even
+when the deploy fails.
+
+Each GitHub environment needs two secrets for that, both `terraform output`
+values from the matching directory under `terraform/environments`:
+
+| Secret | Terraform output |
+|---|---|
+| `AWS_DEPLOY_ROLE_ARN` | `github_deploy_role_arn` |
+| `DEPLOY_SECURITY_GROUP_ID` | `security_group_id` |
+
+The role is scoped to one security group and two EC2 actions, and its trust
+policy names the GitHub environment, so a workflow on some other branch cannot
+assume it without passing the environment's approval rule.
+
+Two things worth knowing when this misbehaves:
+
+- **Set the secrets before you narrow `allowed_ssh_cidrs`.** With either secret
+  missing the job logs a warning, skips the open/close steps, and deploys the
+  old way — which works only while port 22 still admits the runner.
+- **A `terraform apply` during a deploy will lock it out.** The rule is added out
+  of band and the security group uses inline `ingress` blocks, so an apply
+  removes it. That is what cleans up after a run that died before revoking, but
+  it also means the two should not overlap.
+
 ### Cutting a release
 
 1. On an up-to-date `main` with a clean working tree, make sure the suite

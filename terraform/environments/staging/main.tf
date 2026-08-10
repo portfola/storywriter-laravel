@@ -127,6 +127,12 @@ module "storywriter_server" {
   admin_email               = var.admin_email
   github_actions_public_key = var.github_actions_public_key
 
+  # Neither value is a secret, so they are set here rather than in tfvars: the
+  # repo and the GitHub Environment name that the staging deploy job declares.
+  # They scope the role that opens port 22 for a deploy runner.
+  github_deploy_repository  = "storywriter-labs/storywriter-laravel"
+  github_deploy_environment = "staging"
+
   app_content_bucket_name          = var.app_content_bucket_name
   app_content_cors_allowed_origins = var.app_content_cors_allowed_origins
 }
