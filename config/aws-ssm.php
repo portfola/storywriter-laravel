@@ -68,6 +68,7 @@ return [
         'services.elevenlabs.api_key' => 'ELEVENLABS_API_KEY',
         'services.elevenlabs.agent_id' => 'ELEVENLABS_AGENT_ID',
         'services.together.api_key' => 'TOGETHER_API_KEY',
+        'services.groq.key' => 'GROQ_API_KEY',
     ],
 
 ];
