@@ -146,12 +146,17 @@ return [
     |--------------------------------------------------------------------------
     |
     | API key for Groq Console. Used by Heirloom's NarrativeService for
-    | transcript-to-narrative synthesis (llama-3.3-70b-versatile).
+    | transcript-to-narrative synthesis.
+    |
+    | Groq retires models without notice -- llama-3.3-70b-versatile went away
+    | and every synthesis returned a 500. Keep the model an env param so the
+    | next retirement is a config change, not a code change.
     |
     */
 
     'groq' => [
         'key' => env('GROQ_API_KEY'),
+        'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),
     ],
 
 ];

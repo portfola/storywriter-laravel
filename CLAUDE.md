@@ -67,7 +67,7 @@ All third-party config lives in `config/services.php`:
 |---|---|---|
 | Together AI | Text + image generation | `TOGETHER_API_KEY`; models via `TOGETHER_TEXT_MODEL` / `TOGETHER_IMAGE_MODEL` (image size/steps via `TOGETHER_IMAGE_WIDTH`/`_HEIGHT`/`_STEPS`) |
 | ElevenLabs | TTS, conversation AI | `ELEVENLABS_API_KEY`; default model via `ELEVENLABS_DEFAULT_MODEL`; daily limits tracked in `ElevenLabsUsage` model |
-| Groq | Heirloom narrative synthesis | `GROQ_API_KEY` |
+| Groq | Heirloom narrative synthesis | `GROQ_API_KEY`; model via `GROQ_MODEL` (defaults to `openai/gpt-oss-120b`) |
 | PostHog | Analytics/event tracking | `POSTHOG_API_KEY`; events on login, story generation start/success/failure |
 | AWS SSM | Secrets (staging/prod only) | `AWS_SSM_ENABLED=true`; path pattern `/storywriter/{environment}/{KEY}` |
 
