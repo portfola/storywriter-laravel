@@ -34,6 +34,19 @@ return Application::configure(basePath: dirname(__DIR__))
             SetSecurityHeaders::class,
         ]);
 
+        // Heirloom runs in a browser, so its requests carry an Origin that
+        // matches Sanctum's stateful list (localhost:3000 by default). That
+        // sends them through the session + CSRF stack, and a write request
+        // fails with 419 before the controller runs. Both apps authenticate
+        // with bearer tokens and hold no session, so CSRF protects nothing on
+        // these paths: login is what issues the token, and the Heirloom API is
+        // token-only behind auth:sanctum.
+        $middleware->validateCsrfTokens(except: [
+            'api/auth/login',
+            'api/v1/auth/login',
+            'api/heirloom/v1/*',
+        ]);
+
         // CORS is handled by the HandleCors middleware already present in
         // Laravel's default global stack, which reads config/cors.php.
         // Allowed origins belong there — not here.
