@@ -14,10 +14,8 @@ class NarrativeService
 
     public function __construct()
     {
-        // $this->apiKey = config('services.together.api_key') ?? '';
-        // $this->model = config('services.together.text_model');
         $this->apiKey = config('services.groq.key') ?? '';
-        $this->model = 'llama-3.3-70b-versatile';
+        $this->model = config('services.groq.model');
     }
 
     public function synthesise(Subject $subject, string $format = 'memoir'): string
