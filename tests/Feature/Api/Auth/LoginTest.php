@@ -72,6 +72,57 @@ class LoginTest extends TestCase
         $response->assertNotFound();
     }
 
+    public function test_the_unversioned_login_route_works_for_heirloom(): void
+    {
+        // Heirloom posts to /api/auth/login rather than the versioned path the
+        // StoryWriter app uses.
+        User::factory()->create([
+            'email' => 'ada@example.com',
+            'password' => Hash::make('password123'),
+        ]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'ada@example.com',
+            'password' => 'password123',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonStructure(['token', 'user']);
+    }
+
+    public function test_the_unversioned_login_route_rejects_a_wrong_password(): void
+    {
+        User::factory()->create([
+            'email' => 'ada@example.com',
+            'password' => Hash::make('password123'),
+        ]);
+
+        $response = $this->postJson('/api/auth/login', [
+            'email' => 'ada@example.com',
+            'password' => 'not-the-password',
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_the_unversioned_login_route_is_rate_limited_by_ip(): void
+    {
+        $limit = (int) config('services.auth.rate_limit_per_minute');
+
+        for ($attempt = 0; $attempt < $limit; $attempt++) {
+            $this->postJson('/api/auth/login', [
+                'email' => 'ada@example.com',
+                'password' => 'guess',
+            ])->assertStatus(422);
+        }
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'ada@example.com',
+            'password' => 'guess',
+        ])->assertStatus(429);
+    }
+
     public function test_login_is_rate_limited_by_ip(): void
     {
         $limit = (int) config('services.auth.rate_limit_per_minute');

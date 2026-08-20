@@ -54,6 +54,14 @@ Route::prefix('v1')->group(function () {
     });
 });
 
+// Unversioned auth alias. Heirloom posts to /api/auth/login (its own calls are
+// versioned per-app under /api/heirloom/v1), so the same LoginController and
+// throttle are exposed here as well as under /api/v1/auth/login, which the
+// StoryWriter app uses.
+Route::prefix('auth')->middleware('throttle:auth')->group(function () {
+    Route::post('/login', LoginController::class);
+});
+
 // Heirloom routes (Tim's branch)
 Route::prefix('heirloom/v1')
     ->name('heirloom.v1.')
