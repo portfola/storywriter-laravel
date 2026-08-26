@@ -269,13 +269,24 @@ jobs:
           echo "Deployed commit: ${{ github.sha }}"
           DEPLOY_SCRIPT
 
+      # The check runs on the server, not on the runner. Staging can be narrowed
+      # to a list of testers' addresses (allowed_web_cidrs in Terraform), and a
+      # GitHub-hosted runner is never on that list -- curling from here would
+      # start failing the moment the list is narrowed. Curling from the box we
+      # just deployed to tests the same thing and needs nothing open inbound.
+      #
+      # --resolve, not https://localhost: it pins the connection to loopback
+      # while still sending the real hostname, so nginx picks the right server
+      # block and the certificate still has to be valid.
       - name: Health check
         run: |
           echo "==> Running health check..."
           sleep 5
 
-          # Try to reach the application via HTTPS
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://${{ secrets.STAGING_HOST }} || echo "000")
+          HTTP_CODE=$(ssh -i ~/.ssh/deploy_key deploy@${{ secrets.STAGING_HOST }} \
+            "curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+               --resolve '${{ secrets.STAGING_HOST }}:443:127.0.0.1' \
+               https://${{ secrets.STAGING_HOST }}" || echo "000")
 
           if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "302" ]; then
             echo "✓ Health check passed (HTTP $HTTP_CODE)"

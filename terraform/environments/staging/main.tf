@@ -85,6 +85,12 @@ variable "allowed_ssh_cidrs" {
   type        = list(string)
 }
 
+variable "allowed_web_cidrs" {
+  description = "CIDR blocks allowed to reach staging-api on ports 80 and 443. Set this in terraform.tfvars to the testers' addresses so strangers cannot spend Together AI and ElevenLabs money on us. The default leaves staging public, so merging this alone changes nothing."
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
 variable "admin_email" {
   description = "Email address for Let's Encrypt SSL certificate notifications"
   type        = string
@@ -124,6 +130,7 @@ module "storywriter_server" {
   deploy_branch             = var.deploy_branch
   route53_zone_id           = var.route53_zone_id
   allowed_ssh_cidrs         = var.allowed_ssh_cidrs
+  allowed_web_cidrs         = var.allowed_web_cidrs
   admin_email               = var.admin_email
   github_actions_public_key = var.github_actions_public_key
 

@@ -130,6 +130,10 @@ module "storywriter_server" {
   admin_email               = var.admin_email
   github_actions_public_key = var.github_actions_public_key
 
+  # allowed_web_cidrs is left at the module default, the whole internet. This is
+  # the real API that real customers' apps call, so it stays public on purpose.
+  # Staging is the one that gets narrowed.
+
   app_content_bucket_name          = var.app_content_bucket_name
   app_content_cors_allowed_origins = var.app_content_cors_allowed_origins
 }
